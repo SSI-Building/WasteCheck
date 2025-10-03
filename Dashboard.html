@@ -2,16 +2,29 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Map Satellite</title>
+  <title>Map Satellite + Zoom Info</title>
   <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
   <style>
     body { margin:0; padding:0; }
     #map { position:absolute; top:0; bottom:0; width:100%; }
+    #zoom-info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(255,255,255,0.8);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 14px;
+      border: 1px solid #333;
+      z-index: 1;
+    }
   </style>
 </head>
 <body>
 
 <div id="map"></div>
+<div id="zoom-info">Zoom: </div> <!-- ข้อความบอก Zoom -->
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script>
