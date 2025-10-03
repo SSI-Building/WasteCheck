@@ -2,32 +2,57 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Leaflet Map Example</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <title>Leaflet Map ตัวอย่าง</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.5/dist/leaflet.css" />
+
   <style>
     #map { height: 500px; width: 100%; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
   </style>
 </head>
 <body>
-  <h2>Map จาก Leaflet + OpenStreetMap</h2>
-  <div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    // กำหนดตำแหน่งพิกัด
-    const location = [11.231666, 99.535692];
+<h2>Map + Marker + Polygon ตัวอย่าง</h2>
+<div id="map"></div>
 
-    // สร้าง Map
-    const map = L.map('map').setView(location, 15);
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.5/dist/leaflet.js"></script>
+<script>
+  // สร้าง map
+  const map = L.map('map').setView([11.231666, 99.535692], 15);
 
-    // โหลด Map Layer จาก OpenStreetMap (ฟรี)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+  // โหลด OpenStreetMap Layer
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+  }).addTo(map);
 
-    // ปัก Marker พร้อม Popup ข้อความ
-    const marker = L.marker(location).addTo(map);
-    marker.bindPopup("<b>ตำแหน่งที่เลือก</b><br>นี่คือข้อความของคุณ").openPopup();
-  </script>
+  // ตัวอย่าง Marker หลายจุดพร้อมข้อความ Popup
+  const markers = [
+    { coords: [11.231666, 99.535692], text: "ตำแหน่งที่ 1" },
+    { coords: [11.233000, 99.537000], text: "ตำแหน่งที่ 2" },
+    { coords: [11.229500, 99.534000], text: "ตำแหน่งที่ 3" }
+  ];
+
+  markers.forEach(m => {
+    L.marker(m.coords).addTo(map)
+      .bindPopup(`<b>${m.text}</b>`)
+      .openPopup();
+  });
+
+  // วาด Polygon รอบพื้นที่ตัวอย่าง
+  const polygon = L.polygon([
+    [11.231666, 99.535692],
+    [11.233000, 99.537000],
+    [11.229500, 99.534000]
+  ], {
+    color: 'blue',
+    fillColor: '#30f',
+    fillOpacity: 0.2
+  }).addTo(map);
+
+</script>
+
 </body>
 </html>
