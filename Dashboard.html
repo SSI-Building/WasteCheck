@@ -17,30 +17,42 @@
 <script>
   const center = [99.535692, 11.231666]; // [lng, lat]
 
-  const map = new maplibregl.Map({
-    container: 'map',
-    style: {
-      version: 8,
-      sources: {
-        satellite: {
-          type: 'raster',
-          tiles: [
-            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-          ],
-          tileSize: 256
-        }
-      },
-      layers: [
-        {
-          id: 'satellite',
-          type: 'raster',
-          source: 'satellite'
-        }
-      ]
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: {
+      satellite: {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        ],
+        tileSize: 256
+      }
     },
-    center: center,
-    zoom: 15
+    layers: [
+      {
+        id: 'satellite',
+        type: 'raster',
+        source: 'satellite'
+      }
+    ]
+  },
+  center: center,
+  zoom: 15,
+  maxZoom: 17.39 // <-- ไม่สามารถซูมเกินนี้
+});
+
+  const zoomInfo = document.getElementById('zoom-info');
+
+  // Event listener อัพเดต Zoom Level
+  map.on('zoom', () => {
+    const currentZoom = map.getZoom().toFixed(2); // แสดงทศนิยม 2 ตำแหน่ง
+    zoomInfo.innerText = `Zoom Level: ${currentZoom}`;
   });
+
+  // อัพเดตตอนเริ่มต้น
+  zoomInfo.innerText = `Zoom Level: ${map.getZoom().toFixed(2)}`;
 </script>
 
 </body>
