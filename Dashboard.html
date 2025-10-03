@@ -2,32 +2,45 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Leaflet Map Example</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.5/dist/leaflet.css" />
+  <title>Map Satellite</title>
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
   <style>
-    #map { height: 500px; width: 100%; }
-    body { font-family: Arial, sans-serif; margin: 20px; }
+    body { margin:0; padding:0; }
+    #map { position:absolute; top:0; bottom:0; width:100%; }
   </style>
 </head>
 <body>
 
-<h2>Map + Marker ตัวอย่าง</h2>
 <div id="map"></div>
 
-<!-- โหลด Leaflet JS ก่อนเรียกใช้ L -->
-<script src="https://unpkg.com/leaflet@1.9.5/dist/leaflet.js"></script>
-
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script>
-  const myLocation = [11.231666, 99.535692];
+  const center = [99.535692, 11.231666]; // [lng, lat]
 
-  const map = L.map('map').setView(myLocation, 15);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
-  }).addTo(map);
-
-  const marker = L.marker(myLocation).addTo(map);
-  marker.bindPopup("<b>ตำแหน่งที่เลือก</b><br>นี่คือข้อความของคุณ").openPopup();
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        satellite: {
+          type: 'raster',
+          tiles: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          ],
+          tileSize: 256
+        }
+      },
+      layers: [
+        {
+          id: 'satellite',
+          type: 'raster',
+          source: 'satellite'
+        }
+      ]
+    },
+    center: center,
+    zoom: 15
+  });
 </script>
 
 </body>
