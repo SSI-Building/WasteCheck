@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Google Maps API Example</title>
+  <style>
+    #map {
+      height: 500px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h2>ตำแหน่งจากพิกัด Google Earth</h2>
+  <div id="map"></div>
+
+  <!-- ใส่ API KEY จริงของคุณแทน YOUR_API_KEY -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap"
+          async defer></script>
+  <script>
+    function initMap() {
+      const location = { lat: 11.231666, lng: 99.535692 };
+      const map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 15,
+        center: location,
+        mapTypeId: 'roadmap'
+      });
+
+      // ปักหมุดแบบไม่ใส่ชื่อ (จะไม่มีข้อความขึ้น)
+      new google.maps.Marker({
+        position: location,
+        map: map
+      });
+    }
+  </script>
+</body>
+</html>
