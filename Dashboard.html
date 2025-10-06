@@ -2,12 +2,17 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Map Satellite + Zoom Info</title>
+  <title>Map Satellite + Controls + Distance</title>
   <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+  
   <style>
+    /* ตั้งค่าเริ่มต้น: ลบขอบและระยะห่างรอบหน้าเว็บ */
     body { margin:0; padding:0; }
+    /* กำหนดให้แผนที่เต็มพื้นที่หน้าจอ */
     #map { position:absolute; top:0; bottom:0; width:100%; }
-    #zoom-info {
+
+    /* สไตล์สำหรับกล่องแสดงค่า Bearing (ทิศทางการหมุน) */
+    #bearing-info {
       position: absolute;
       top: 10px;
       left: 10px;
@@ -17,55 +22,239 @@
       font-weight: bold;
       font-size: 14px;
       border: 1px solid #333;
+      z-index: 1; /* ให้แสดงทับบนแผนที่ */
+    }
+
+    /* สไตล์สำหรับกล่องแสดงค่า Distance (ระยะห่าง) */
+    #distance-info {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background-color: rgba(255,255,255,0.8);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      border: 1px solid #333;
       z-index: 1;
+      white-space: pre-line; /* ให้แสดงข้อความหลายบรรทัดตาม \n ใน JavaScript */
+    }
+
+    /* สไตล์สำหรับปุ่ม Reset ที่กำหนดเอง */
+    .reset-button {
+      background: white;
+      border: none;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      padding: 8px;
+      cursor: pointer;
+      margin: 5px;
+      transition: transform 0.2s, background 0.3s;
+    }
+    .reset-button:hover {
+      background: #f0f0f0;
+      transform: scale(1.1); /* ขยายเล็กน้อยเมื่อเมาส์ชี้ */
+    }
+
+    /* สไตล์สำหรับปรับปรุงปุ่ม Navigation Control ของ MapLibre */
+    .maplibregl-ctrl-group > button {
+      border-radius: 4px !important;
+      margin: 2px !important;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      transition: transform 0.15s, background-color 0.2s;
+    }
+    .maplibregl-ctrl-group > button:hover {
+      background-color: #f0f0f0;
+      transform: scale(1.1);
     }
   </style>
 </head>
 <body>
 
 <div id="map"></div>
-<div id="zoom-info">Zoom: </div> <!-- ข้อความบอก Zoom -->
+
+<div id="bearing-info">Bearing: -44.80°</div>
+
+<div id="distance-info">
+พิกัด: 99.535692, 11.231666
+ระยะไปขอบบน:   1.43 km
+ระยะไปขอบล่าง: 1.71 km
+ระยะไปขอบซ้าย: 1.47 km
+ระยะไปขอบขวา:  1.67 km
+</div>
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
 <script>
-  const center = [99.535692, 11.231666]; // [lng, lat]
+  // =======================================================
+  // 1. การตั้งค่าแผนที่เบื้องต้น (Initial Setup)
+  // =======================================================
+  const center = [99.535692, 11.231666]; // พิกัดศูนย์กลางเริ่มต้น (ลองจิจูด, ละติจูด)
+  const initialZoom = 15.50;             // ระดับการซูมเริ่มต้น
+  const initialBearing = -45.6;          // ทิศทางการหมุนเริ่มต้น (0° คือทิศเหนือ)
+  const initialPitch = 0;                // มุมมองเงย/ก้มเริ่มต้น (0° คือมองตรงลงมา)
 
-const map = new maplibregl.Map({
-  container: 'map',
-  style: {
-    version: 8,
-    sources: {
-      satellite: {
-        type: 'raster',
-        tiles: [
-          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-        ],
-        tileSize: 256
-      }
+  // สร้างอ็อบเจกต์แผนที่ (Map Object)
+  const map = new maplibregl.Map({
+    container: 'map', // ผูกแผนที่เข้ากับ div id="map"
+    style: {
+      version: 8,
+      sources: {
+        // กำหนดแหล่งข้อมูลแผนที่ (ใช้ภาพถ่ายดาวเทียมจาก ESRI ArcGIS Online)
+        satellite: {
+          type: 'raster',
+          tiles: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          ],
+          tileSize: 256
+        }
+      },
+      layers: [
+        // เพิ่ม Layer ภาพถ่ายดาวเทียมลงในแผนที่
+        { id: 'satellite', type: 'raster', source: 'satellite' }
+      ]
     },
-    layers: [
-      {
-        id: 'satellite',
-        type: 'raster',
-        source: 'satellite'
-      }
-    ]
-  },
-  center: center,
-  zoom: 15,
-  maxZoom: 17.39 // <-- ไม่สามารถซูมเกินนี้
-});
-
-  const zoomInfo = document.getElementById('zoom-info');
-
-  // Event listener อัพเดต Zoom Level
-  map.on('zoom', () => {
-    const currentZoom = map.getZoom().toFixed(2); // แสดงทศนิยม 2 ตำแหน่ง
-    zoomInfo.innerText = `Zoom Level: ${currentZoom}`;
+    center: center,
+    zoom: initialZoom,
+    bearing: initialBearing,
+    pitch: initialPitch,
+    //minZoom: 10,
+    maxZoom: 17.39 // จำกัดการซูมสูงสุด
   });
 
-  // อัพเดตตอนเริ่มต้น
-  zoomInfo.innerText = `Zoom Level: ${map.getZoom().toFixed(2)}`;
+
+  // =======================================================
+  // 2. การควบคุม (Controls)
+  // =======================================================
+
+  // เพิ่ม Navigation Control (ซูมเข้า/ออก, เข็มทิศ/หมุน) ที่มุมล่างขวา
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+
+  // **คลาส Reset Control (ปุ่มที่สร้างเอง)**
+  class ResetControl {
+    // ฟังก์ชันที่ทำงานเมื่อ Control ถูกเพิ่มเข้าแผนที่
+    onAdd(map) {
+      this.map = map;
+      this.container = document.createElement('div');
+      this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'; // ใช้ class เพื่อให้จัดกลุ่มกับ Control อื่นได้
+
+      const btn = document.createElement('button');
+      btn.className = 'reset-button'; // ใช้ class CSS ที่กำหนดไว้
+      btn.innerHTML = "⟳"; // ไอคอนรีเซ็ต
+      btn.title = "Reset View";
+      // กำหนดเหตุการณ์เมื่อคลิกปุ่ม
+      btn.onclick = () => {
+        // เคลื่อนแผนที่กลับไปยังพิกัด, ซูม, Bearing, และ Pitch เริ่มต้นแบบนุ่มนวล
+        map.easeTo({
+          center: center,
+          zoom: initialZoom,
+          bearing: initialBearing,
+          pitch: initialPitch
+        });
+      };
+
+      this.container.appendChild(btn);
+      return this.container;
+    }
+    // ฟังก์ชันที่ทำงานเมื่อ Control ถูกลบออกจากแผนที่
+    onRemove() {
+      this.container.parentNode.removeChild(this.container);
+      this.map = undefined;
+    }
+  }
+  // เพิ่ม Reset Control เข้าสู่แผนที่ที่มุมล่างขวา
+  map.addControl(new ResetControl(), 'bottom-right');
+
+
+  // =======================================================
+  // 3. ข้อมูล Bearing (ทิศทางการหมุน)
+  // =======================================================
+  const bearingInfo = document.getElementById('bearing-info');
+
+  // ฟังก์ชันสำหรับอัปเดตค่า Bearing
+  function updateBearing() {
+    const bearing = map.getBearing().toFixed(2); // ดึงค่า Bearing ปัจจุบัน และกำหนดทศนิยม 2 ตำแหน่ง
+    bearingInfo.innerText = `Bearing: ${bearing}°`;
+  }
+  // ผูกฟังก์ชัน updateBearing กับเหตุการณ์ 'rotate' (หมุนแผนที่)
+  map.on('rotate', updateBearing);
+  // ผูกฟังก์ชัน updateBearing กับเหตุการณ์ 'load' (แผนที่โหลดเสร็จ)
+  map.on('load', updateBearing);
+
+
+  // =======================================================
+  // 4. ข้อมูล Distance (ระยะห่างไปยังขอบแผนที่)
+  // =======================================================
+  const distanceInfo = document.getElementById('distance-info');
+  const targetPoint = [99.535692, 11.231666]; // พิกัดเป้าหมายที่ใช้คำนวณระยะห่าง
+
+  // ฟังก์ชันสำหรับคำนวณและอัปเดตระยะห่าง
+  function updateDistances() {
+    const bounds = map.getBounds(); // รับขอบเขตแผนที่ที่กำลังแสดงอยู่ (North, South, East, West)
+    const point = turf.point(targetPoint); // สร้างจุดเป้าหมายด้วย Turf.js
+
+    // กำหนดจุดที่ขอบเขตแผนที่เพื่อคำนวณระยะห่าง
+    const north = turf.point([targetPoint[0], bounds.getNorth()]); // ขอบบน
+    const south = turf.point([targetPoint[0], bounds.getSouth()]); // ขอบล่าง
+    const west  = turf.point([bounds.getWest(), targetPoint[1]]);  // ขอบซ้าย
+    const east  = turf.point([bounds.getEast(), targetPoint[1]]);   // ขอบขวา
+
+    // คำนวณระยะห่างจากจุดเป้าหมายไปยังแต่ละขอบ (หน่วย: กิโลเมตร)
+    const distNorth = turf.distance(point, north, {units: 'kilometers'}).toFixed(2);
+    const distSouth = turf.distance(point, south, {units: 'kilometers'}).toFixed(2);
+    const distWest  = turf.distance(point, west,  {units: 'kilometers'}).toFixed(2);
+    const distEast  = turf.distance(point, east,  {units: 'kilometers'}).toFixed(2);
+
+    // อัปเดตข้อความในกล่อง Distance Info
+    distanceInfo.innerText =
+      `พิกัด: ${targetPoint[0]}, ${targetPoint[1]}\n` +
+      `ระยะไปขอบบน:   ${distNorth} km\n` +
+      `ระยะไปขอบล่าง: ${distSouth} km\n` +
+      `ระยะไปขอบซ้าย: ${distWest} km\n` +
+      `ระยะไปขอบขวา:  ${distEast} km`;
+  }
+
+  // ผูกฟังก์ชัน updateDistances กับเหตุการณ์ 'moveend' (แผนที่หยุดเคลื่อนไหว/ซูม/หมุน)
+  map.on('moveend', updateDistances);
+
+
+  // =======================================================
+  // 5. Marker และ Popup
+  // =======================================================
+  const markerPoint = [99.535692, 11.231666]; // พิกัดสำหรับหมุด
+
+  // สร้าง div HTML สำหรับเป็นรูปร่างของ Marker
+  const markerDiv = document.createElement('div');
+  markerDiv.style.width = '10px';
+  markerDiv.style.height = '10px';
+  markerDiv.style.backgroundColor = '#FF0000'; // สีแดง
+  markerDiv.style.borderRadius = '100%';       // รูปวงกลม
+  markerDiv.style.border = '1px solid white';
+  markerDiv.style.boxShadow = '0 0 1px rgba(0,0,0,0.5)';
+
+  // สร้าง Marker Object
+  const marker = new maplibregl.Marker({
+    element: markerDiv, // ใช้ div ที่สร้างเป็น Marker
+    anchor: 'center'    // ให้จุดศูนย์กลางของ div อยู่ตรงกับพิกัด
+  })
+  .setLngLat(markerPoint) // กำหนดพิกัด
+  .addTo(map);           // เพิ่มเข้าสู่แผนที่
+
+  // สร้าง Popup Object (ป้ายชื่อ)
+  const popup = new maplibregl.Popup({
+    offset: 5,            // ระยะห่างจากหมุด
+    closeButton: false,   // ไม่แสดงปุ่มปิด
+    closeOnClick: false   // ไม่อนุญาตให้ปิดเมื่อคลิก
+  })
+  .setText("หมุดของฉัน") // ข้อความใน Popup
+  .setMaxWidth("150px");
+
+  // ผูก Popup เข้ากับ Marker
+  marker.setPopup(popup);
+
+  // ให้ Popup แสดงตลอดเวลา
+  popup.addTo(map);
 </script>
 
 </body>
