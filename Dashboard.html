@@ -9,6 +9,30 @@
     body { margin:0; padding:0; }
     #map { position:absolute; top:0; bottom:0; width:100%; }
 
+    /* สไตล์สำหรับ Text Label แทน Popup */
+    .custom-text-label {
+      background-color: #fff;
+      color: #333;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      white-space: nowrap;
+      /* ปรับตำแหน่ง: เลื่อนขึ้นให้เหนือจุดศูนย์กลางเล็กน้อย */
+      transform: translate(0, -15px); /* ปรับค่านี้เพื่อเลื่อนขึ้น/ลง */
+    }
+    
+    /* สไตล์สำหรับหมุดจุดสีแดงเดิม */
+    .red-dot-marker {
+      width: 10px;
+      height: 10px;
+      background-color: #FF0000;
+      border-radius: 100%;
+      border: 1px solid white;
+      box-shadow: 0 0 1px rgba(0,0,0,0.5);
+    }
+
     /* สไตล์สำหรับกล่องแสดงค่า Bearing (ทิศทางการหมุน) */
     #bearing-info {
       position: absolute;
@@ -27,7 +51,7 @@
     #zoom-info {
       position: absolute;
       top: 10px;
-      right: 10px; /* ย้ายไปมุมขวาบน */
+      right: 10px;
       background-color: rgba(255,255,255,0.8);
       padding: 5px 10px;
       border-radius: 4px;
@@ -87,7 +111,7 @@
 
 <div id="bearing-info">Bearing: -45.60°</div>
 
-<div id="zoom-info">Zoom: 15.35</div>
+<div id="zoom-info">Zoom: 15.65</div>
 
 <div id="distance-info">
 พิกัด: 99.535692, 11.231666
@@ -107,12 +131,12 @@
   const targetLngLat = [99.535692, 11.231666]; 
 
   // 📐 ค่าชดเชย (Offset) ที่ต้องการตามหน้าจอที่หมุนแล้ว
-  const desiredOffsetSouth = 0.0010; // ปรับ: ต้องการเลื่อนหมุดให้ห่างจากขอบล่างของจอ
-  const desiredOffsetWest  = 0.0000; // ปรับ: ต้องการเลื่อนหมุดให้ห่างจากขอบซ้ายของจอ
+  const desiredOffsetSouth = 0.0010;
+  const desiredOffsetWest  = 0.0000;
 
   // ค่าการหมุนเริ่มต้น
   const initialBearing = -45.6;          
-  const initialZoom = 15.65;             // ระดับการซูมเริ่มต้น
+  const initialZoom = 15.65;
   const initialPitch = 0;                
 
   // --- การคำนวณ Offset ตามมุมหมุน (Trigonometry) ---
@@ -199,30 +223,23 @@
 
 
   // =======================================================
-  // 3. ข้อมูล Bearing (ทิศทางการหมุน)
+  // 3. ข้อมูล Bearing (ทิศทางการหมุน) & Zoom
   // =======================================================
   const bearingInfo = document.getElementById('bearing-info');
+  const zoomInfo = document.getElementById('zoom-info');
 
   function updateBearing() {
     const bearing = map.getBearing().toFixed(2);
     bearingInfo.innerText = `Bearing: ${bearing}°`;
   }
-  map.on('rotate', updateBearing);
-  map.on('load', updateBearing);
-
-  // =======================================================
-  // 3.5. ข้อมูล Zoom Level (ใหม่)
-  // =======================================================
-  const zoomInfo = document.getElementById('zoom-info');
-
-  // ฟังก์ชันสำหรับอัปเดตค่า Zoom
   function updateZoom() {
-    const zoom = map.getZoom().toFixed(2); // ดึงค่า Zoom ปัจจุบันและกำหนดทศนิยม 2 ตำแหน่ง
+    const zoom = map.getZoom().toFixed(2); 
     zoomInfo.innerText = `Zoom: ${zoom}`;
   }
-  // ผูกฟังก์ชัน updateZoom กับเหตุการณ์ 'zoom' (ซูมแผนที่)
-  map.on('zoom', updateZoom); 
-  map.on('load', updateZoom); // อัปเดตค่าเริ่มต้นเมื่อโหลดเสร็จ
+  map.on('rotate', updateBearing);
+  map.on('zoom', updateZoom);
+  map.on('load', updateBearing); 
+  map.on('load', updateZoom); 
 
 
   // =======================================================
@@ -252,17 +269,13 @@
 
 
   // =======================================================
-  // 5. Marker และ Popup
+  // 5. Marker และ Text Label (แทน Popup)
   // =======================================================
   const markerPoint = targetLngLat; 
 
+  // --- 5.1 Marker ตัวที่ 1: จุดสีแดง (หมุดหลัก) ---
   const markerDiv = document.createElement('div');
-  markerDiv.style.width = '10px';
-  markerDiv.style.height = '10px';
-  markerDiv.style.backgroundColor = '#FF0000';
-  markerDiv.style.borderRadius = '100%';
-  markerDiv.style.border = '1px solid white';
-  markerDiv.style.boxShadow = '0 0 1px rgba(0,0,0,0.5)';
+  markerDiv.className = 'red-dot-marker'; 
 
   const marker = new maplibregl.Marker({
     element: markerDiv,
@@ -271,16 +284,18 @@
   .setLngLat(markerPoint)
   .addTo(map);
 
-  const popup = new maplibregl.Popup({
-    offset: 5,
-    closeButton: false,
-    closeOnClick: false
-  })
-  .setText("หมุดของฉัน")
-  .setMaxWidth("150px");
+  // --- 5.2 Marker ตัวที่ 2: Text Label (ข้อความแทน Popup) ---
+  const labelDiv = document.createElement('div');
+  labelDiv.className = 'custom-text-label'; 
+  labelDiv.innerText = "หมุดของฉัน"; 
 
-  marker.setPopup(popup);
-  popup.addTo(map);
+  const labelMarker = new maplibregl.Marker({
+    element: labelDiv,
+    anchor: 'bottom' 
+  })
+  .setLngLat(markerPoint)
+  .addTo(map);
+
 </script>
 
 </body>
