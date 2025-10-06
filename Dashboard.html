@@ -22,6 +22,20 @@
       border: 1px solid #333;
       z-index: 1;
     }
+    
+    /* สไตล์ใหม่สำหรับกล่องแสดงค่า Zoom Level */
+    #zoom-info {
+      position: absolute;
+      top: 10px;
+      right: 10px; /* ย้ายไปมุมขวาบน */
+      background-color: rgba(255,255,255,0.8);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 14px;
+      border: 1px solid #333;
+      z-index: 1;
+    }
 
     /* สไตล์สำหรับกล่องแสดงค่า Distance (ระยะห่าง) */
     #distance-info {
@@ -73,6 +87,8 @@
 
 <div id="bearing-info">Bearing: -45.60°</div>
 
+<div id="zoom-info">Zoom: 15.35</div>
+
 <div id="distance-info">
 พิกัด: 99.535692, 11.231666
 ระยะไปขอบล่าง: [กำลังคำนวณ] km 
@@ -91,31 +107,27 @@
   const targetLngLat = [99.535692, 11.231666]; 
 
   // 📐 ค่าชดเชย (Offset) ที่ต้องการตามหน้าจอที่หมุนแล้ว
-  // ปรับค่า 2 ตัวนี้เพื่อจัดตำแหน่ง:
-  const desiredOffsetSouth = 0.0017; // ⬅️ ปรับ: ต้องการเลื่อนหมุดให้ห่างจากขอบล่างของจอ (หน่วยประมาณเป็นองศา)
-  const desiredOffsetWest  = 0.0015; // ⬅️ ปรับ: ต้องการเลื่อนหมุดให้ห่างจากขอบซ้ายของจอ (หน่วยประมาณเป็นองศา)
+  const desiredOffsetSouth = 0.0017; // ปรับ: ต้องการเลื่อนหมุดให้ห่างจากขอบล่างของจอ
+  const desiredOffsetWest  = 0.0015; // ปรับ: ต้องการเลื่อนหมุดให้ห่างจากขอบซ้ายของจอ
 
   // ค่าการหมุนเริ่มต้น
   const initialBearing = -45.6;          
-  const initialZoom = 15.36;             // ระดับการซูมเริ่มต้น
-  const initialPitch = 0;                // มุมมองเงย/ก้มเริ่มต้น
+  const initialZoom = 15.350;             // ระดับการซูมเริ่มต้น
+  const initialPitch = 0;                
 
   // --- การคำนวณ Offset ตามมุมหมุน (Trigonometry) ---
-  const angleRad = (initialBearing * Math.PI) / 180; // แปลงมุม Bearing เป็นเรเดียน
+  const angleRad = (initialBearing * Math.PI) / 180; 
 
-  // คำนวณ Longitude (X) Offset ที่สอดคล้องกับการหมุน
   const offsetX_Lng = (
       (desiredOffsetWest * Math.cos(angleRad)) + 
       (desiredOffsetSouth * Math.sin(angleRad))
   );
 
-  // คำนวณ Latitude (Y) Offset ที่สอดคล้องกับการหมุน
   const offsetY_Lat = (
       (desiredOffsetSouth * Math.cos(angleRad)) - 
       (desiredOffsetWest * Math.sin(angleRad))
   );
 
-  // คำนวณศูนย์กลางใหม่ = พิกัดหลัก - Offset (เพื่อให้หมุดปรากฏเยื้องไปทางขวาบน)
   const center = [
       targetLngLat[0] - offsetX_Lng, 
       targetLngLat[1] - offsetY_Lat  
@@ -140,7 +152,7 @@
         { id: 'satellite', type: 'raster', source: 'satellite' }
       ]
     },
-    center: center, // ใช้ค่าศูนย์กลางที่ถูก Offset และคำนวณตามมุมหมุนแล้ว
+    center: center, 
     zoom: initialZoom,
     bearing: initialBearing,
     pitch: initialPitch,
@@ -149,10 +161,10 @@
 
 
   // =======================================================
-  // 2. การควบคุม (Controls)
+  // 2. การควบคุม (Controls) และ ข้อมูลพื้นฐาน
   // =======================================================
 
-  // เพิ่ม Navigation Control (ซูมเข้า/ออก, เข็มทิศ/หมุน) ที่มุมล่างขวา
+  // เพิ่ม Navigation Control
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
 
   // คลาส Reset Control (ปุ่มที่สร้างเอง)
@@ -167,7 +179,6 @@
       btn.innerHTML = "⟳";
       btn.title = "Reset View";
       btn.onclick = () => {
-        // เคลื่อนแผนที่กลับไปยังค่าศูนย์กลางที่ถูก Offset แล้ว
         map.easeTo({
           center: center, 
           zoom: initialZoom,
@@ -184,7 +195,6 @@
       this.map = undefined;
     }
   }
-  // เพิ่ม Reset Control เข้าสู่แผนที่ที่มุมล่างขวา
   map.addControl(new ResetControl(), 'bottom-right');
 
 
@@ -193,54 +203,59 @@
   // =======================================================
   const bearingInfo = document.getElementById('bearing-info');
 
-  // ฟังก์ชันสำหรับอัปเดตค่า Bearing
   function updateBearing() {
     const bearing = map.getBearing().toFixed(2);
     bearingInfo.innerText = `Bearing: ${bearing}°`;
   }
-  // อัปเดตเมื่อหมุนแผนที่ และเมื่อแผนที่โหลดเสร็จ
   map.on('rotate', updateBearing);
   map.on('load', updateBearing);
+
+  // =======================================================
+  // 3.5. ข้อมูล Zoom Level (ใหม่)
+  // =======================================================
+  const zoomInfo = document.getElementById('zoom-info');
+
+  // ฟังก์ชันสำหรับอัปเดตค่า Zoom
+  function updateZoom() {
+    const zoom = map.getZoom().toFixed(2); // ดึงค่า Zoom ปัจจุบันและกำหนดทศนิยม 2 ตำแหน่ง
+    zoomInfo.innerText = `Zoom: ${zoom}`;
+  }
+  // ผูกฟังก์ชัน updateZoom กับเหตุการณ์ 'zoom' (ซูมแผนที่)
+  map.on('zoom', updateZoom); 
+  map.on('load', updateZoom); // อัปเดตค่าเริ่มต้นเมื่อโหลดเสร็จ
 
 
   // =======================================================
   // 4. ข้อมูล Distance (ระยะห่างไปยังขอบแผนที่)
-  //    *แสดงเฉพาะระยะไปขอบล่างและขอบซ้าย*
   // =======================================================
   const distanceInfo = document.getElementById('distance-info');
-  const targetPoint = targetLngLat; // พิกัดเป้าหมายที่ใช้คำนวณระยะห่าง (พิกัดหลัก)
+  const targetPoint = targetLngLat; 
 
-  // ฟังก์ชันสำหรับคำนวณและอัปเดตระยะห่าง
   function updateDistances() {
-    const bounds = map.getBounds(); // รับขอบเขตแผนที่ที่กำลังแสดงอยู่
-    const point = turf.point(targetPoint); // สร้างจุดเป้าหมาย
+    const bounds = map.getBounds(); 
+    const point = turf.point(targetPoint); 
 
-    // คำนวณเฉพาะ ขอบล่าง และ ขอบซ้าย
-    const south = turf.point([targetPoint[0], bounds.getSouth()]); // ขอบล่าง
-    const west  = turf.point([bounds.getWest(), targetPoint[1]]);  // ขอบซ้าย
+    const south = turf.point([targetPoint[0], bounds.getSouth()]); 
+    const west  = turf.point([bounds.getWest(), targetPoint[1]]);  
 
-    // คำนวณระยะห่าง (หน่วย: กิโลเมตร)
     const distSouth = turf.distance(point, south, {units: 'kilometers'}).toFixed(2);
     const distWest  = turf.distance(point, west,  {units: 'kilometers'}).toFixed(2);
     
-    // อัปเดตข้อความในกล่อง Distance Info
     distanceInfo.innerText =
       `พิกัด: ${targetPoint[0]}, ${targetPoint[1]}\n` +
       `ระยะไปขอบล่าง: ${distSouth} km\n` +
       `ระยะไปขอบซ้าย: ${distWest} km`;
   }
 
-  // อัปเดตเมื่อแผนที่หยุดเคลื่อนไหว/ซูม/หมุน
   map.on('moveend', updateDistances);
-  map.on('load', updateDistances); // อัปเดตเมื่อโหลดเสร็จครั้งแรก
+  map.on('load', updateDistances); 
 
 
   // =======================================================
   // 5. Marker และ Popup
   // =======================================================
-  const markerPoint = targetLngLat; // ใช้พิกัดหลักสำหรับหมุด
+  const markerPoint = targetLngLat; 
 
-  // สร้าง div HTML สำหรับเป็นรูปร่างของ Marker
   const markerDiv = document.createElement('div');
   markerDiv.style.width = '10px';
   markerDiv.style.height = '10px';
@@ -249,7 +264,6 @@
   markerDiv.style.border = '1px solid white';
   markerDiv.style.boxShadow = '0 0 1px rgba(0,0,0,0.5)';
 
-  // สร้าง Marker Object
   const marker = new maplibregl.Marker({
     element: markerDiv,
     anchor: 'center'
@@ -257,7 +271,6 @@
   .setLngLat(markerPoint)
   .addTo(map);
 
-  // สร้าง Popup Object (ป้ายชื่อ)
   const popup = new maplibregl.Popup({
     offset: 5,
     closeButton: false,
@@ -266,7 +279,6 @@
   .setText("หมุดของฉัน")
   .setMaxWidth("150px");
 
-  // ผูก Popup เข้ากับ Marker และให้แสดงตลอดเวลา
   marker.setPopup(popup);
   popup.addTo(map);
 </script>
