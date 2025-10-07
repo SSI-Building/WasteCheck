@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Map-WasteCheck</title>
+  <title>Map Satellite + Controls + Distance + Multi Markers (Hidden UI)</title>
   <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
   <style>
     body { margin:0; padding:0; }
@@ -31,21 +31,14 @@
       pointer-events: auto;
     }
 
-    #bearing-info, #zoom-info, #distance-info {
-      position: absolute;
-      background-color: rgba(255,255,255,0.9);
-      border: 1px solid #333;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 14px;
-      z-index: 1;
-      padding: 5px 10px;
+    /* -------- ซ่อน UI Text แต่ฟังก์ชันยังทำงาน -------- */
+    #bearing-info,
+    #zoom-info,
+    #distance-info {
+      display: none;
     }
-    #bearing-info { top: 10px; left: 10px; }
-    #zoom-info    { top: 10px; right: 10px; }
-    #distance-info { bottom: 10px; left: 10px; white-space: pre-line; }
 
-    /* ------ ปรับสไตล์ให้ปุ่มในกลุ่ม control มีขนาด/มาร์จินเหมือนกัน ------ */
+    /* ------ ปรับสไตล์ปุ่ม control/Reset ------ */
     .maplibregl-ctrl-group > button,
     .maplibregl-ctrl-group > .maplibregl-ctrl-icon,
     .maplibregl-ctrl-group > .reset-button {
@@ -67,8 +60,6 @@
       background: #f0f0f0;
       transform: scale(1.04);
     }
-
-    /* reset-button มีไอคอนใหญ่ขึ้นเล็กน้อย */
     .reset-button span {
       font-size: 16px;
       line-height: 1;
@@ -80,7 +71,8 @@
 <body>
   <div id="map"></div>
 
-  <div id="bearing-info">Bearing: -45.60°</div>
+  <!-- UI ซ่อน แต่ JS ยังทำงาน -->
+  <div id="bearing-info">Azimuth: -45.60°</div>
   <div id="zoom-info">Zoom: 15.65</div>
   <div id="distance-info">
 พิกัด: 99.535692, 11.231666
@@ -92,22 +84,17 @@
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script>
     // =======================================================
-    // 1. การตั้งค่าแผนที่
+    // 1. ตั้งค่าแผนที่
     // =======================================================
     const targetLngLat = [99.535692, 11.231666];
-    const desiredOffsetSouth = 0.0010;
-    const desiredOffsetWest  = 0.0000;
     const initialBearing = -45.6;
     const initialZoom = 15.65;
     const initialPitch = 0;
 
     const angleRad = (initialBearing * Math.PI) / 180;
-    const offsetX_Lng = ((desiredOffsetWest * Math.cos(angleRad)) + (desiredOffsetSouth * Math.sin(angleRad)));
-    const offsetY_Lat = ((desiredOffsetSouth * Math.cos(angleRad)) - (desiredOffsetWest * Math.sin(angleRad)));
-    const center = [
-      targetLngLat[0] - offsetX_Lng,
-      targetLngLat[1] - offsetY_Lat
-    ];
+    const offsetX_Lng = 0;
+    const offsetY_Lat = 0;
+    const center = [targetLngLat[0] - offsetX_Lng, targetLngLat[1] - offsetY_Lat];
 
     const map = new maplibregl.Map({
       container: 'map',
@@ -116,9 +103,7 @@
         sources: {
           satellite: {
             type: 'raster',
-            tiles: [
-              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-            ],
+            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
             tileSize: 256
           }
         },
@@ -134,97 +119,81 @@
     });
 
     // =======================================================
-    // 2. Controls (เพิ่ม Navigation และ Reset ใน map.load ทำให้ทั้งสองอยู่ในตำแหน่งเดียวกัน)
+    // 2. Controls (Navigation + Reset)
     // =======================================================
     class ResetControl {
       onAdd(mapInstance) {
         this.map = mapInstance;
-        // ใช้ class เดียวกับกลุ่ม control เพื่อให้เข้า layout เดียวกับปุ่ม zoom/rotate
         this.container = document.createElement('div');
         this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-
         const btn = document.createElement('button');
         btn.className = 'reset-button';
         btn.type = 'button';
         btn.title = 'รีเซ็ตมุมมองแผนที่';
-        btn.setAttribute('aria-label','Reset map view');
         btn.innerHTML = '<span>⟳</span>';
-
-        // ฟังก์ชันรีเซ็ตการมุมมอง
-        btn.addEventListener('click', (e) => {
-          // ป้องกันไม่ให้เหตุการณ์กระทบ control อื่น
+        btn.addEventListener('click', e => {
           e.stopPropagation();
-          this.map.easeTo({
-            center: center,
-            zoom: initialZoom,
-            bearing: initialBearing,
-            pitch: initialPitch,
-            duration: 800
-          });
+          this.map.easeTo({ center, zoom: initialZoom, bearing: initialBearing, pitch: initialPitch, duration: 800 });
         });
-
         this.container.appendChild(btn);
         return this.container;
       }
       onRemove() {
-        if (this.container && this.container.parentNode) {
-          this.container.parentNode.removeChild(this.container);
-        }
+        if (this.container && this.container.parentNode) this.container.parentNode.removeChild(this.container);
         this.map = undefined;
       }
     }
 
-    // เพิ่ม controls หลัง map โหลดเสร็จ เพื่อให้ทั้งสองถูกวางในตำแหน่งเดียวกัน (bottom-right)
     map.on('load', () => {
-      // เพิ่ม NavigationControl (ปุ่ม zoom/rotate)
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-      // เพิ่ม ResetControl ใน bottom-right ด้วย (จะเข้ากลุ่มเดียวกันโดย class ของ container)
       map.addControl(new ResetControl(), 'bottom-right');
 
-      // อัพเดต UI หลังโหลด
-      updateBearing();
+      updateAzimuth();
       updateZoom();
       updateDistances();
     });
 
     // =======================================================
-    // 3. Bearing & Zoom Info
+    // 3. Azimuth & Zoom (ซ่อน UI แต่ฟังก์ชันยังทำงาน)
     // =======================================================
     const bearingInfo = document.getElementById('bearing-info');
-    const zoomInfo    = document.getElementById('zoom-info');
-    function updateBearing() { bearingInfo.innerText = `Bearing: ${map.getBearing().toFixed(2)}°`; }
+    const zoomInfo = document.getElementById('zoom-info');
+
+    function updateAzimuth() { bearingInfo.innerText = `Azimuth: ${map.getBearing().toFixed(2)}°`; }
     function updateZoom()    { zoomInfo.innerText = `Zoom: ${map.getZoom().toFixed(2)}`; }
 
-    map.on('rotate', updateBearing);
+    map.on('rotate', updateAzimuth);
     map.on('zoom', updateZoom);
 
     // =======================================================
-    // 4. Distance Info
+    // 4. Distance Info (ซ่อน UI แต่ยังคำนวณ)
     // =======================================================
     const distanceInfo = document.getElementById('distance-info');
+
     function updateDistances() {
       const bounds = map.getBounds();
       const point = turf.point(targetLngLat);
       const south = turf.point([targetLngLat[0], bounds.getSouth()]);
       const west  = turf.point([bounds.getWest(), targetLngLat[1]]);
       const distSouth = turf.distance(point, south, {units: 'kilometers'}).toFixed(2);
-      const distWest  = turf.distance(point, west,  {units: 'kilometers'}).toFixed(2);
+      const distWest  = turf.distance(point, west, {units: 'kilometers'}).toFixed(2);
       distanceInfo.innerText =
         `พิกัด: ${targetLngLat[0]}, ${targetLngLat[1]}\n` +
         `ระยะไปขอบล่าง: ${distSouth} km\n` +
         `ระยะไปขอบซ้าย: ${distWest} km`;
     }
+
     map.on('moveend', updateDistances);
 
     // =======================================================
-    // 5. เพิ่มหมุดหลายจุด (Marker + Label)
+    // 5. เพิ่มหมุดหลายจุด (Marker + Label + Popup)
     // =======================================================
     const locations = [
       { id: "1", name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225347, lng: 99.538782 },
       { id: "2", name: "ป้อมข้างห้องน้ำ", lat: 11.225813, lng: 99.538542 },
       { id: "3", name: "ออฟฟิสหน้า SSI", lat: 11.225350, lng: 99.537677 },
       { id: "4", name: "ซุ้มศาลาพักผ่อนทางเดินไป Canteen", lat: 11.225668, lng: 99.537135 },
-      { id: "5", name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.226040, lng: 99.537104}
+      { id: "5", name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.226040, lng: 99.537104 }
     ];
 
     const markerDotSize = 10;
