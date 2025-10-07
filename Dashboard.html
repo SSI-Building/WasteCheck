@@ -4,172 +4,186 @@
   <meta charset="UTF-8">
   <title>Map-WasteCheck</title>
   <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
-    /* ----------------------------------------------------- */
-    /* ส่วน Map และ Info Controls */
-    /* ----------------------------------------------------- */
     body { margin:0; padding:0; }
     #map { position:absolute; top:0; bottom:0; width:100%; }
+
     .custom-text-label {
-      background-color: #fff; color: #333; padding: 0px 6px; border-radius: 5px; font-size: 12px; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.3); white-space: nowrap; pointer-events: none; margin: 0;
+      background-color: #fff;
+      color: #333;
+      padding: 0px 6px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: bold;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      white-space: nowrap;
+      pointer-events: none;
+      margin: 0;
     }
+
     .red-dot-marker {
-      width: 10px; height: 10px; background-color: #FF0000; border-radius: 100%; border: 1px solid white; box-shadow: 0 0 1px rgba(0,0,0,0.5); pointer-events: auto;
+      width: 10px;
+      height: 10px;
+      background-color: #FF0000;
+      border-radius: 100%;
+      border: 1px solid white;
+      box-shadow: 0 0 1px rgba(0,0,0,0.5);
+      pointer-events: auto;
     }
+
     #bearing-info, #zoom-info, #distance-info {
-      position: absolute; background-color: rgba(255,255,255,0.9); border: 1px solid #333; border-radius: 6px; font-weight: bold; font-size: 14px; z-index: 1; padding: 5px 10px;
+      position: absolute;
+      background-color: rgba(255,255,255,0.9);
+      border: 1px solid #333;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 14px;
+      z-index: 1;
+      padding: 5px 10px;
     }
     #bearing-info { top: 10px; left: 10px; }
     #zoom-info    { top: 10px; right: 10px; }
     #distance-info { bottom: 10px; left: 10px; white-space: pre-line; }
 
-    /* Control Buttons Style */
-    .maplibregl-ctrl-group > button, .maplibregl-ctrl-group > .maplibregl-ctrl-icon, .maplibregl-ctrl-group > .reset-button, .maplibregl-ctrl-group > .toggle-table-button {
-      width: 28px; height: 28px; margin: 2px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 4px rgba(0,0,0,0.15); cursor: pointer; padding: 0;
+    /* ------ ปรับสไตล์ให้ปุ่มในกลุ่ม control มีขนาด/มาร์จินเหมือนกัน ------ */
+    .maplibregl-ctrl-group > button,
+    .maplibregl-ctrl-group > .maplibregl-ctrl-icon,
+    .maplibregl-ctrl-group > .reset-button,
+    .maplibregl-ctrl-group > .toggle-table-button { /* เพิ่มคลาสสำหรับปุ่มใหม่ */
+      width: 28px;
+      height: 28px;
+      margin: 2px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.12);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+      cursor: pointer;
+      padding: 0;
     }
-    .maplibregl-ctrl-group > button:hover, .maplibregl-ctrl-group > .reset-button:hover, .maplibregl-ctrl-group > .toggle-table-button:hover { 
-      background: #f0f0f0; transform: scale(1.04);
-    }
-    .reset-button span {
-      font-size: 16px; line-height: 1; display: inline-block; transform: translateY(-1px);
-    }
-    /* NEW: สไตล์เฉพาะสำหรับปุ่ม Toggle Table */
-    .toggle-table-button.active {
-        background-color: #333 !important;
-        color: white;
-    }
-    .toggle-table-button.active:hover {
-        background-color: #555 !important;
-        color: white;
+    .maplibregl-ctrl-group > button:hover,
+    .maplibregl-ctrl-group > .reset-button:hover,
+    .maplibregl-ctrl-group > .toggle-table-button:hover { /* เพิ่ม hover style */
+      background: #f0f0f0;
+      transform: scale(1.04);
     }
 
+    /* reset-button มีไอคอนใหญ่ขึ้นเล็กน้อย */
+    .reset-button span {
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      transform: translateY(-1px);
+    }
+    
+    /* สไตล์สำหรับปุ่มเปิด-ปิดตาราง (ใช้ icon ☰ และ ✕) */
+    .toggle-table-button span {
+        font-size: 16px;
+        line-height: 1;
+        font-weight: bold;
+    }
 
     /* ----------------------------------------------------- */
-    /* สไตล์สำหรับตารางที่ลากและปรับขนาดได้ (Window Style) */
+    /* สไตล์สำหรับตารางที่ลากและปรับขนาดได้ */
     /* ----------------------------------------------------- */
     #draggable-table-container {
       position: absolute;
+      /* เริ่มต้นที่ซ้ายของจอและกึ่งกลางแนวตั้ง */
       top: 50%;
       left: 0; 
-      transform: translateY(-50%); 
+      transform: translateY(-50%); /* จัดให้อยู่กึ่งกลางแนวตั้ง */
       
-      width: 400px; 
-      height: 450px;
-      min-width: 250px;
-      min-height: 300px;
-      max-width: 90vw; 
+      width: 350px; /* กำหนดขนาดเริ่มต้น */
+      height: 400px;
+      max-width: 90vw; /* จำกัดขนาดไม่ให้เกินจอ */
       max-height: 90vh;
       
       background: rgba(255, 255, 255, 0.95);
-      border: 1px solid #777;
+      border: 2px solid #333;
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      z-index: 10; 
-      display: none; 
-      overflow: hidden; 
-      flex-direction: column; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      z-index: 10; /* ให้อยู่เหนือแผนที่ */
+      display: none; /* ซ่อนตอนเริ่มต้น */
+      overflow: hidden; /* ซ่อนเนื้อหาที่เกินขอบ */
+      
+      /* ทำให้ลากได้ */
+      cursor: move;
     }
 
-    #draggable-table-container:not(.dragging):not(.resizing) {
-        transition: all 0.2s ease-out; 
-    }
-
-    #window-header {
+    #table-header {
       background-color: #333;
       color: white;
-      padding: 4px 10px;
-      cursor: grab; 
+      padding: 8px 12px;
+      cursor: move; /* ส่วนหัวที่ใช้ลาก */
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-weight: bold;
-      flex-shrink: 0;
-    }
-    
-    #window-header .control-buttons {
-        display: flex;
-        gap: 0px; 
+      flex-shrink: 0; /* ไม่ให้ header ถูกบีบเมื่อย่อขนาด container */
     }
 
-    #window-header .control-buttons button {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 14px;
-        cursor: pointer;
-        line-height: 1;
-        width: 30px; 
-        height: 25px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border-radius: 0; 
-        margin: 0 1px; 
+    #table-header .close-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 5px;
+      line-height: 1;
+      font-weight: bold;
     }
-    #window-header .control-buttons button:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-    }
-    #window-header #close-window-btn:hover {
-        background-color: #e74c3c; 
+    #table-header .close-btn:hover {
+      color: #ff4d4d;
     }
 
     #data-table-wrapper {
-      overflow-y: auto; 
-      flex-grow: 1; 
-      padding: 8px;
+      overflow-y: auto; /* ทำให้เนื้อหาตารางเลื่อนได้ */
+      height: calc(100% - 38px); /* ขนาดพื้นที่ที่เหลือสำหรับตาราง (หัก header ออก) */
+      padding: 0px 8px 8px; /* เว้นขอบด้านล่าง */
     }
-    
-    /* สไตล์เมื่อย่อขนาด (Minimize - เป็นแท็บที่ขอบล่างซ้าย) */
-    #draggable-table-container.minimized {
-        bottom: 0px !important; 
-        left: 0px !important;
-        top: auto !important;
-        right: auto !important;
-        transform: none !important; 
 
-        /* NEW: ปรับให้ดูเป็นแท็บ */
-        width: 300px !important; 
-        height: auto !important;
-        max-height: 35px; /* ความสูงแถบ */
-        border-radius: 0 8px 0 0; 
-        border-left: 1px solid #777;
-        border-right: 1px solid #777;
-        border-bottom: none;
-        box-shadow: 0 -4px 12px rgba(0,0,0,0.3); /* ให้เงาอยู่ด้านบน */
-        cursor: pointer; 
+    #data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
     }
-    
-    /* FIX: ซ่อนเนื้อหาตารางอย่างสมบูรณ์เมื่อย่อขนาด */
-    #draggable-table-container.minimized #data-table-wrapper {
-        display: none !important; 
+    #data-table th, #data-table td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: left;
     }
-    #draggable-table-container.minimized #window-header {
-        cursor: pointer; 
-        padding: 0 5px 0 10px;
+    #data-table th {
+      background-color: #f2f2f2;
+      position: sticky; /* ทำให้ Header ตารางติดอยู่ด้านบนเมื่อเลื่อน */
+      top: 0;
+      z-index: 2;
     }
-    
-    /* สไตล์เมื่อขยายเต็มจอ (Maximize) */
-    #draggable-table-container.maximized {
-        width: 100vw !important;
-        height: 100vh !important;
-        top: 0 !important;
-        left: 0 !important;
-        transform: none !important;
-        border-radius: 0;
-        cursor: grab; 
+
+    /* สไตล์สำหรับ interact.js resize handles (จุด/ขอบสำหรับปรับขนาด) */
+    .resize-container {
+      /* ต้องเพิ่ม position: relative; ให้กับ container ที่ใช้ interact.js ด้วย */
+      position: relative;
     }
-    
-    /* ปรับปรุงประสิทธิภาพและความลื่นไหลของ Interact.js */
-    .interact-resizable.dragging,
-    .interact-resizable.resizing {
-        transition: none !important; 
+
+    /* กำหนดขอบเขตที่สามารถลากเพื่อปรับขนาดได้ */
+    .interact-resizable {
+        box-sizing: border-box; /* ทำให้ padding/border ไม่ส่งผลต่อขนาด width/height */
     }
-    .interact-resizable.dragging #window-header { cursor: grabbing; }
+    .interact-resizable.resize-drag {
+        transition: none;
+    }
+
+    /* กำหนด cursor ที่เปลี่ยนเมื่ออยู่บริเวณขอบ */
     .interact-resizable[data-y-action="resize"] { cursor: ns-resize; }
     .interact-resizable[data-x-action="resize"] { cursor: ew-resize; }
     .interact-resizable[data-x-action="resize"][data-y-action="resize"] { cursor: nwse-resize; }
+    /* เพิ่ม opacity เมื่อกำลังลาก/ปรับขนาด (เพื่อ feedback ให้ผู้ใช้) */
+    .interact-resizing {
+        opacity: 0.8; 
+    }
+
   </style>
 </head>
 <body>
@@ -184,13 +198,9 @@
   </div>
 
   <div id="draggable-table-container" class="interact-resizable">
-    <div id="window-header">
+    <div id="table-header">
       <span>ตารางข้อมูลพื้นที่</span>
-      <div class="control-buttons">
-          <button id="minimize-btn" title="ย่อหน้าต่าง"><i class="fas fa-minus"></i></button>
-          <button id="maximize-btn" title="ขยายเต็มจอ"><i class="far fa-square"></i></button>
-          <button id="close-window-btn" title="ปิดตาราง"><i class="fas fa-times"></i></button>
-      </div>
+      <button id="close-table-btn" class="close-btn" title="ปิดตาราง">✕</button>
     </div>
     <div id="data-table-wrapper">
       <table id="data-table">
@@ -213,7 +223,7 @@
   
   <script>
     // =======================================================
-    // 1. ข้อมูลพื้นที่, Map Setup, Info Updates, Markers (ไม่เปลี่ยนแปลง)
+    // ข้อมูลพื้นที่
     // =======================================================
     const locations = [
       { id: "1", name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225347, lng: 99.538782, labelPos: 'bottom' },
@@ -254,7 +264,14 @@
       { id: "35", name: "บริเวณจุดพักพนักงาน Cleaning", lat: 11.231295, lng: 99.533010, labelPos: 'top' },
       { id: "36", name: "พื้นที่รับน้ำมันเตา", lat: 11.230280, lng:  99.532628, labelPos: 'top' },
     ];
-    
+    // =======================================================
+
+    // (โค้ด MaplibreGL และ Controls เดิมของคุณอยู่ตรงนี้)
+    // ...
+
+    // =======================================================
+    // 1. การตั้งค่าแผนที่ (ไม่เปลี่ยนแปลง)
+    // =======================================================
     const targetLngLat = [99.535692, 11.231666];
     const desiredOffsetSouth = 0.0010;
     const desiredOffsetWest  = 0.0000;
@@ -294,21 +311,33 @@
       maxZoom: 17.39
     });
 
+    // =======================================================
+    // 2. Controls (เพิ่ม Navigation และ Reset ใน map.load ทำให้ทั้งสองอยู่ในตำแหน่งเดียวกัน) (เพิ่มปุ่มเปิด-ปิดตาราง)
+    // =======================================================
     class ResetControl {
       onAdd(mapInstance) {
         this.map = mapInstance;
         this.container = document.createElement('div');
         this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+
         const btn = document.createElement('button');
         btn.className = 'reset-button';
         btn.type = 'button';
         btn.title = 'รีเซ็ตมุมมองแผนที่';
         btn.setAttribute('aria-label','Reset map view');
         btn.innerHTML = '<span>⟳</span>';
+
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.map.easeTo({ center: center, zoom: initialZoom, bearing: initialBearing, pitch: initialPitch, duration: 800 });
+          this.map.easeTo({
+            center: center,
+            zoom: initialZoom,
+            bearing: initialBearing,
+            pitch: initialPitch,
+            duration: 800
+          });
         });
+
         this.container.appendChild(btn);
         return this.container;
       }
@@ -320,7 +349,7 @@
       }
     }
 
-    // NEW: ปรับปรุง ToggleTableControl
+    // Class ใหม่สำหรับปุ่มเปิด-ปิดตาราง
     class ToggleTableControl {
       onAdd(mapInstance) {
         this.map = mapInstance;
@@ -331,40 +360,26 @@
         this.btn.className = 'toggle-table-button';
         this.btn.type = 'button';
         this.btn.title = 'แสดง/ซ่อนตารางข้อมูล';
-        // ใช้ไอคอน fa-table หรือ fa-list ที่สื่อความหมาย
-        this.btn.innerHTML = '<i class="fas fa-table" id="toggle-table-icon"></i>'; 
+        this.btn.setAttribute('aria-label','Toggle data table');
+        this.btn.innerHTML = '<span id="toggle-table-icon">☰</span>'; // Icon '☰'
 
+        // เพิ่ม Event Listener
         this.btn.addEventListener('click', (e) => {
           e.stopPropagation();
-          const container = document.getElementById('draggable-table-container');
-          
-          if (container.style.display === 'none' || container.style.display === '') {
-              // ถ้าปิดอยู่ -> เปิด
-              container.style.display = 'flex';
-              
-              // NEW: ถ้า Minimize อยู่ ให้ Restore กลับมาเป็นหน้าต่างลอย
-              if (container.classList.contains('minimized')) {
-                minimizeWindow(); // เรียก minimizeWindow เพื่อ toggle กลับมา Restore
-              } else {
-                  // ถ้าไม่ได้ Minimize ให้ Ensure ว่าไม่ Maximize และไอคอน Maximize ถูกต้อง
-                  container.classList.remove('maximized');
-                  document.getElementById('maximize-btn').innerHTML = '<i class="far fa-square"></i>';
-                  isMaximized = false;
-              }
-
-              this.btn.classList.add('active'); // เปลี่ยนสถานะปุ่มเป็น Active
-              this.btn.title = 'ซ่อนตารางข้อมูล';
-
-          } else {
-              // ถ้าเปิดอยู่ -> ปิด
-              container.style.display = 'none';
-              this.btn.classList.remove('active'); // เปลี่ยนสถานะปุ่มเป็น Inactive
-              this.btn.title = 'แสดงตารางข้อมูล';
-          }
+          document.getElementById('draggable-table-container').style.display = 
+            document.getElementById('draggable-table-container').style.display === 'none' || document.getElementById('draggable-table-container').style.display === ''
+            ? 'flex' : 'none';
+          this.updateIcon();
         });
 
         this.container.appendChild(this.btn);
         return this.container;
+      }
+
+      updateIcon() {
+        const isVisible = document.getElementById('draggable-table-container').style.display !== 'none';
+        document.getElementById('toggle-table-icon').innerHTML = isVisible ? '✕' : '☰';
+        this.btn.title = isVisible ? 'ซ่อนตารางข้อมูล' : 'แสดงตารางข้อมูล';
       }
 
       onRemove() {
@@ -377,22 +392,34 @@
 
 
     map.on('load', () => {
+      // เพิ่ม NavigationControl (ปุ่ม zoom/rotate)
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+      // เพิ่ม ResetControl
       map.addControl(new ResetControl(), 'bottom-right');
-      map.addControl(new ToggleTableControl(), 'bottom-right'); 
+      // เพิ่มปุ่มเปิด-ปิดตารางใหม่
+      map.addControl(new ToggleTableControl(), 'bottom-right'); // อยู่ต่อจากปุ่มอื่น
+
+      // อัพเดต UI หลังโหลด
       updateBearing();
       updateZoom();
       updateDistances();
-      populateTable(); 
+      populateTable(); // เพิ่มฟังก์ชันเรียกใส่ข้อมูลในตาราง
     });
 
+    // =======================================================
+    // 3. Bearing & Zoom Info (ไม่เปลี่ยนแปลง)
+    // =======================================================
     const bearingInfo = document.getElementById('bearing-info');
     const zoomInfo    = document.getElementById('zoom-info');
     function updateBearing() { bearingInfo.innerText = `Bearing: ${map.getBearing().toFixed(2)}°`; }
     function updateZoom()    { zoomInfo.innerText = `Zoom: ${map.getZoom().toFixed(2)}`; }
+
     map.on('rotate', updateBearing);
     map.on('zoom', updateZoom);
 
+    // =======================================================
+    // 4. Distance Info (ไม่เปลี่ยนแปลง)
+    // =======================================================
     const distanceInfo = document.getElementById('distance-info');
     function updateDistances() {
       const bounds = map.getBounds();
@@ -408,6 +435,9 @@
     }
     map.on('moveend', updateDistances);
 
+    // =======================================================
+    // 5. เพิ่มหมุดหลายจุด (Marker + Label) (ไม่เปลี่ยนแปลง)
+    // =======================================================
     const labelOffsetMap = {
       top:    [0, -10],
       right:  [20, 10],
@@ -426,31 +456,25 @@
       labelDiv.className = 'custom-text-label';
       labelDiv.innerText = loc.id;
       
-      const offset = labelOffsetMap[loc.labelPos] || [0, -20]; 
+      const offset = labelOffsetMap[loc.labelPos] || [0, -20]; // กำหนด default เป็น top
       
       new maplibregl.Marker({ element: labelDiv, anchor: 'bottom', offset: offset })
         .setLngLat([loc.lng, loc.lat])
         .setPopup(new maplibregl.Popup({ offset: 25 }).setText(loc.name))
         .addTo(map);
     });
-
+    
     // =======================================================
-    // 3. ฟังก์ชันตารางและ Drag/Resize & Window Controls 
+    // 6. ฟังก์ชันตารางและ Drag/Resize
     // =======================================================
     
     const tableContainer = document.getElementById('draggable-table-container');
-    const windowHeader = document.getElementById('window-header');
     const tableBody = document.querySelector('#data-table tbody');
-    const closeWindowBtn = document.getElementById('close-window-btn');
-    const minimizeBtn = document.getElementById('minimize-btn');
-    const maximizeBtn = document.getElementById('maximize-btn');
-    
-    let isMaximized = false;
-    let isMinimized = false;
-    let previousRect = { x: 0, y: 0, width: 400, height: 450 }; 
+    const closeTableBtn = document.getElementById('close-table-btn');
 
+    // ฟังก์ชันใส่ข้อมูลในตาราง
     function populateTable() {
-      tableBody.innerHTML = ''; 
+      tableBody.innerHTML = ''; // ล้างข้อมูลเดิม
       locations.forEach(loc => {
         const row = tableBody.insertRow();
         const idCell = row.insertCell();
@@ -460,171 +484,46 @@
       });
     }
 
-    function closeWindow() {
+    // จัดการการปิดตารางด้วยปุ่ม Close ใน Header
+    closeTableBtn.addEventListener('click', () => {
       tableContainer.style.display = 'none';
-      document.querySelector('.toggle-table-button').classList.remove('active');
+      // อัพเดตไอคอนของปุ่มเปิด-ปิดตารางหลักด้วย
+      document.getElementById('toggle-table-icon').innerHTML = '☰';
       document.querySelector('.toggle-table-button').title = 'แสดงตารางข้อมูล';
-      tableContainer.classList.remove('minimized', 'maximized');
-      isMaximized = false;
-      isMinimized = false;
-      document.getElementById('maximize-btn').innerHTML = '<i class="far fa-square"></i>';
-      minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>';
-    }
-
-    function minimizeWindow() {
-        if (!isMinimized) {
-            previousRect = { 
-                x: parseFloat(tableContainer.dataset.x) || 0,
-                y: parseFloat(tableContainer.dataset.y) || 0,
-                width: tableContainer.offsetWidth,
-                height: tableContainer.offsetHeight
-            };
-            
-            if (isMaximized) {
-                 tableContainer.classList.remove('maximized');
-                 isMaximized = false;
-                 maximizeBtn.innerHTML = '<i class="far fa-square"></i>';
-                 maximizeBtn.title = 'ขยายเต็มจอ';
-            }
-
-            tableContainer.classList.add('minimized');
-            isMinimized = true;
-            
-            minimizeBtn.innerHTML = '<i class="far fa-window-restore"></i>';
-            minimizeBtn.title = 'คืนค่าหน้าต่าง';
-        } else {
-            tableContainer.classList.remove('minimized');
-            isMinimized = false;
-            
-            Object.assign(tableContainer.style, {
-                width: `${previousRect.width}px`,
-                height: `${previousRect.height}px`,
-                transform: `translate(${previousRect.x}px, ${previousRect.y}px)`,
-                top: '50%', 
-                left: '0' 
-            });
-
-            tableContainer.dataset.x = previousRect.x;
-            tableContainer.dataset.y = previousRect.y;
-
-            minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>';
-            minimizeBtn.title = 'ย่อหน้าต่าง';
-        }
-    }
-
-    function maximizeWindow() {
-        if (!isMaximized) {
-            previousRect = { 
-                x: parseFloat(tableContainer.dataset.x) || 0,
-                y: parseFloat(tableContainer.dataset.y) || 0,
-                width: tableContainer.offsetWidth,
-                height: tableContainer.offsetHeight
-            };
-            
-            if (isMinimized) {
-                tableContainer.classList.remove('minimized');
-                isMinimized = false;
-                minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>';
-                minimizeBtn.title = 'ย่อหน้าต่าง';
-            }
-
-            tableContainer.classList.add('maximized');
-            isMaximized = true;
-            
-            maximizeBtn.innerHTML = '<i class="far fa-window-restore"></i>';
-            maximizeBtn.title = 'คืนค่าขนาด';
-        } else {
-            tableContainer.classList.remove('maximized');
-            isMaximized = false;
-
-            Object.assign(tableContainer.style, {
-                width: `${previousRect.width}px`,
-                height: `${previousRect.height}px`,
-                transform: `translate(${previousRect.x}px, ${previousRect.y}px)`,
-                top: '50%',
-                left: '0'
-            });
-            tableContainer.dataset.x = previousRect.x;
-            tableContainer.dataset.y = previousRect.y;
-
-            maximizeBtn.innerHTML = '<i class="far fa-square"></i>';
-            maximizeBtn.title = 'ขยายเต็มจอ';
-        }
-    }
-
-    // Event Listeners สำหรับปุ่มควบคุม
-    closeWindowBtn.addEventListener('click', closeWindow);
-    minimizeBtn.addEventListener('click', minimizeWindow);
-    maximizeBtn.addEventListener('click', maximizeWindow);
-    
-    // ดับเบิ้ลคลิกที่ header เพื่อ Maximize/Restore หรือ Minimize/Restore
-    windowHeader.addEventListener('dblclick', () => {
-        if (isMinimized) {
-            minimizeWindow();
-        } else {
-            maximizeWindow(); 
-        }
     });
-    
-    // =======================================================
-    // 4. Interact.js Dragging and Resizing 
-    // =======================================================
+
+    // ใช้ interact.js สำหรับลากและปรับขนาดตาราง
     let x = 0;
     let y = 0;
 
     interact(tableContainer)
     .draggable({
-      allowFrom: '#window-header', 
+      // ส่วนที่ใช้ลากคือ header
+      allowFrom: '#table-header',
       listeners: {
         start (event) {
-            tableContainer.classList.add('dragging'); 
-            tableContainer.style.zIndex = 100;
+            // เมื่อเริ่มลาก ให้ตารางอยู่บนสุด
+            tableContainer.style.zIndex = 100; 
         },
         move (event) {
-          if (isMinimized) return; 
-
-          // Logic: ลากลงเพื่อ Restore จาก Maximize
-          if (isMaximized) {
-            if (event.dy > 5) { 
-                maximizeWindow(); 
-                
-                x = event.clientX - (previousRect.width / 2); 
-                y = event.clientY - (windowHeader.offsetHeight / 2);
-                
-                event.target.style.transform = `translate(${x}px, ${y}px)`;
-                event.target.dataset.x = x;
-                event.target.dataset.y = y;
-                return; 
-            }
-            return; 
-          } 
-          
-          // Logic: ลากปกติ
           x += event.dx
           y += event.dy
           
+          // ใช้ transform เพื่อให้การลากราบรื่น
           event.target.style.transform = `translate(${x}px, ${y}px)`;
-          event.target.dataset.x = x;
-          event.target.dataset.y = y;
         },
         end (event) {
-            tableContainer.classList.remove('dragging');
+            // คืนค่า zIndex หลังลากเสร็จ
             tableContainer.style.zIndex = 10;
         }
       }
     })
     .resizable({
-      edges: { left: true, right: true, bottom: true, top: false }, 
+      // ให้ปรับขนาดได้จากทุกด้าน ยกเว้นด้านบนซ้าย
+      edges: { left: true, right: true, bottom: true, top: true },
       
       listeners: {
-        start(event) {
-            if (isMaximized || isMinimized) return;
-            tableContainer.classList.add('resizing'); 
-            tableContainer.style.zIndex = 100; 
-        },
         move (event) {
-          if (isMaximized || isMinimized) return; 
-
           let { x, y } = event.target.dataset
           x = (parseFloat(x) || 0) + event.deltaRect.left
           y = (parseFloat(y) || 0) + event.deltaRect.top
@@ -632,39 +531,52 @@
           Object.assign(event.target.style, {
             width: `${event.rect.width}px`,
             height: `${event.rect.height}px`,
+            // ใช้ transform เพื่ออัพเดตตำแหน่งขณะปรับขนาด
             transform: `translate(${x}px, ${y}px)`
           })
           
           Object.assign(event.target.dataset, { x, y })
         },
+        start(event) {
+            // เมื่อเริ่มปรับขนาด ให้ตารางอยู่บนสุด
+            tableContainer.style.zIndex = 100; 
+        },
         end(event) {
-            tableContainer.classList.remove('resizing');
+            // คืนค่า zIndex หลังปรับขนาดเสร็จ
             tableContainer.style.zIndex = 10;
         }
       },
+      // จำกัดขนาด
       modifiers: [
         interact.modifiers.restrictSize({
-          min: { width: 250, height: 300 }
+          min: { width: 200, height: 250 } // กำหนดขนาดขั้นต่ำ
         })
       ]
-    });
+    })
+    // ตั้งค่าเริ่มต้นของตำแหน่ง x, y สำหรับการลากครั้งแรก (เพื่อ override transform: translateY(-50%) ตอนเริ่มต้น)
+    // การลากครั้งแรกต้องย้ายจากตำแหน่งเริ่มต้น (0, -50% ของความสูงตัวเอง)
+    // เนื่องจากตอนเริ่มต้น CSS ใช้ `top: 50%; left: 0; transform: translateY(-50%);`
+    // เราต้องคำนวณตำแหน่งเริ่มต้นจาก CSS เดิมเพื่อให้การลากครั้งแรกรู้ตำแหน่งที่ถูกต้อง
     
-    // ตั้งค่าเริ่มต้นของตำแหน่ง x, y 
+    // เมื่อ map โหลดเสร็จ หรือหลังจากตารางแสดงผลครั้งแรก (เช่นเมื่อผู้ใช้กดปุ่ม)
+    // เราควรตั้งค่า x, y ให้ถูกต้องตามตำแหน่งปัจจุบัน
     map.on('load', () => {
+        // คำนวณ x, y เริ่มต้นจากตำแหน่งซ้ายสุดและกึ่งกลางจอ
         const rect = tableContainer.getBoundingClientRect();
+        // x เริ่มต้นจาก 0 (เนื่องจาก left: 0)
         x = rect.left; 
-        y = rect.top - (window.innerHeight - rect.height) / 2; 
+        // y เริ่มต้นจากกึ่งกลางจอ แต่ถูก offset ด้วย -50% ของความสูง 
+        // เราต้องชดเชยการเลื่อนนี้กลับไปที่ 0 เพื่อให้การลากทำงานอย่างถูกต้อง
+        y = rect.top + rect.height / 2 - window.innerHeight / 2;
         
+        // กำหนด x, y เริ่มต้นสำหรับ interact.js
         tableContainer.dataset.x = x;
         tableContainer.dataset.y = y;
         
+        // ใช้ transform เพื่อวางตำแหน่งเริ่มต้นที่ถูกต้อง (left: 0, center)
         tableContainer.style.transform = `translate(${x}px, ${y}px)`;
-
-        // ตั้งค่าปุ่ม Toggle เป็น Active เมื่อโหลดหน้าต่างมา
-        if (tableContainer.style.display !== 'none') {
-             document.querySelector('.toggle-table-button').classList.add('active');
-        }
     });
+    
   </script>
 </body>
 </html>
