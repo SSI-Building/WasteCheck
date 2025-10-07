@@ -81,8 +81,7 @@
             background-color: #333;
             color: white;
             padding: 4px 10px;
-            /* NEW: ไม่ให้ลาก */
-            cursor: default; 
+            cursor: move; 
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -117,15 +116,15 @@
         }
 
         #data-table-wrapper {
-            /* NEW: ไม่ต้องมี overflow scroll bar ถ้าเนื้อหาพอดี */
-            overflow: auto; 
             padding: 8px;
+            overflow: visible; /* แทน auto */
         }
 
         #data-table {
             border-collapse: collapse;
             width: 100%; /* ให้ตารางยืดตามความกว้างของ wrapper */
             font-size: 14px;
+            
         }
         #data-table th, #data-table td {
             border: 1px solid #ddd;
@@ -380,6 +379,7 @@
         // =======================================================
         // 3. ฟังก์ชันตาราง (Close & Populate)
         // =======================================================
+
         const tableContainer = document.getElementById('data-table-container');
         const tableBody = document.querySelector('#data-table tbody');
         const closeWindowBtn = document.getElementById('close-window-btn');
@@ -404,7 +404,29 @@
 
         // Event Listener สำหรับปุ่ม Close
         closeWindowBtn.addEventListener('click', closeWindow);
-        
+        const header = document.getElementById('window-header');
+
+let isDragging = false;
+let offsetX, offsetY;
+
+header.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    const rect = tableContainer.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        tableContainer.style.left = (e.clientX - offsetX) + 'px';
+        tableContainer.style.top  = (e.clientY - offsetY) + 'px';
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+
     </script>
 </body>
 </html>
