@@ -1,193 +1,146 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <title>Map-WasteCheck</title>
-  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
-  <style>
-    body { margin:0; padding:0; }
-    #map { position:absolute; top:0; bottom:0; width:100%; }
+    <meta charset="UTF-8">
+    <title>Map-WasteCheck</title>
+    <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        /* ----------------------------------------------------- */
+        /* ส่วน Map และ Info Controls (ไม่เปลี่ยนแปลง) */
+        /* ----------------------------------------------------- */
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
 
-    .custom-text-label {
-      background-color: #fff;
-      color: #333;
-      padding: 0px 6px;
-      border-radius: 5px;
-      font-size: 12px;
-      font-weight: bold;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-      white-space: nowrap;
-      pointer-events: none;
-      margin: 0;
-    }
+        /* ... สไตล์สำหรับ custom-text-label, red-dot-marker, info boxes (เหมือนเดิม) ... */
+        .custom-text-label {
+            background-color: #fff; color: #333; padding: 0px 6px; border-radius: 5px; font-size: 12px; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.3); white-space: nowrap; pointer-events: none; margin: 0;
+        }
+        .red-dot-marker {
+            width: 10px; height: 10px; background-color: #FF0000; border-radius: 100%; border: 1px solid white; box-shadow: 0 0 1px rgba(0,0,0,0.5); pointer-events: auto;
+        }
+        #bearing-info, #zoom-info, #distance-info {
+            position: absolute; background-color: rgba(255,255,255,0.9); border: 1px solid #333; border-radius: 6px; font-weight: bold; font-size: 14px; z-index: 1; padding: 5px 10px;
+        }
+        #bearing-info { top: 10px; left: 10px; }
+        #zoom-info    { top: 10px; right: 10px; }
+        #distance-info { bottom: 10px; left: 10px; white-space: pre-line; }
 
-    .red-dot-marker {
-      width: 10px;
-      height: 10px;
-      background-color: #FF0000;
-      border-radius: 100%;
-      border: 1px solid white;
-      box-shadow: 0 0 1px rgba(0,0,0,0.5);
-      pointer-events: auto;
-    }
+        /* ------ Controls Group ------ */
+        .maplibregl-ctrl-group > button,
+        .maplibregl-ctrl-group > .maplibregl-ctrl-icon,
+        .maplibregl-ctrl-group > .reset-button,
+        .maplibregl-ctrl-group > .toggle-table-button { /* เพิ่มปุ่ม Toggle */
+            width: 28px; height: 28px; margin: 2px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 4px rgba(0,0,0,0.15); cursor: pointer; padding: 0;
+        }
+        .maplibregl-ctrl-group > button:hover,
+        .maplibregl-ctrl-group > .reset-button:hover,
+        .maplibregl-ctrl-group > .toggle-table-button:hover {
+            background: #f0f0f0; transform: scale(1.04);
+        }
+        .reset-button span {
+            font-size: 16px; line-height: 1; display: inline-block; transform: translateY(-1px);
+        }
 
-    #bearing-info, #zoom-info, #distance-info {
-      position: absolute;
-      background-color: rgba(255,255,255,0.9);
-      border: 1px solid #333;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 14px;
-      z-index: 1;
-      padding: 5px 10px;
-    }
-    #bearing-info { top: 10px; left: 10px; }
-    #zoom-info    { top: 10px; right: 10px; }
-    #distance-info { bottom: 10px; left: 10px; white-space: pre-line; }
+        /* NEW: สไตล์เฉพาะสำหรับปุ่ม Toggle Table */
+        .toggle-table-button.active {
+            background-color: #333 !important;
+            color: white;
+        }
+        .toggle-table-button.active:hover {
+            background-color: #555 !important;
+            color: white;
+        }
+        
+        /* ----------------------------------------------------- */
+        /* สไตล์สำหรับตาราง (Fixed Position, Auto-fit) */
+        /* ----------------------------------------------------- */
+        #data-table-container {
+            position: absolute;
+            /* NEW: ชิดมุมบนซ้าย */
+            top: 10px; 
+            left: 10px; 
+            
+            /* NEW: ปรับขนาดตามเนื้อหา */
+            width: auto;
+            height: auto;
+            max-width: 90vw; 
+            max-height: 90vh;
+            
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #777;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 10; 
+            display: none; /* ซ่อนตอนเริ่มต้น */
+            overflow: hidden; 
+            flex-direction: column; 
+        }
 
-    /* ------ ปรับสไตล์ให้ปุ่มในกลุ่ม control มีขนาด/มาร์จินเหมือนกัน ------ */
-    .maplibregl-ctrl-group > button,
-    .maplibregl-ctrl-group > .maplibregl-ctrl-icon,
-    .maplibregl-ctrl-group > .reset-button,
-    .maplibregl-ctrl-group > .toggle-table-button { /* เพิ่มคลาสสำหรับปุ่มใหม่ */
-      width: 28px;
-      height: 28px;
-      margin: 2px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.12);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-      cursor: pointer;
-      padding: 0;
-    }
-    .maplibregl-ctrl-group > button:hover,
-    .maplibregl-ctrl-group > .reset-button:hover,
-    .maplibregl-ctrl-group > .toggle-table-button:hover { /* เพิ่ม hover style */
-      background: #f0f0f0;
-      transform: scale(1.04);
-    }
+        #window-header {
+            background-color: #333;
+            color: white;
+            padding: 4px 10px;
+            /* NEW: ไม่ให้ลาก */
+            cursor: default; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        #window-header .control-buttons {
+            display: flex;
+        }
 
-    /* reset-button มีไอคอนใหญ่ขึ้นเล็กน้อย */
-    .reset-button span {
-      font-size: 16px;
-      line-height: 1;
-      display: inline-block;
-      transform: translateY(-1px);
-    }
-    
-    /* สไตล์สำหรับปุ่มเปิด-ปิดตาราง (ใช้ icon ☰ และ ✕) */
-    .toggle-table-button span {
-        font-size: 16px;
-        line-height: 1;
-        font-weight: bold;
-    }
+        #window-header .control-buttons button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            line-height: 1;
+            width: 30px; 
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin: 0 1px; 
+        }
+        #window-header .control-buttons button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        #window-header #close-window-btn:hover {
+            background-color: #e74c3c; 
+        }
 
-    /* ----------------------------------------------------- */
-    /* สไตล์สำหรับตารางที่ลากและปรับขนาดได้ */
-    /* ----------------------------------------------------- */
-    #draggable-table-container {
-      position: absolute;
-      /* เริ่มต้นที่ซ้ายของจอและกึ่งกลางแนวตั้ง */
-      top: 50%;
-      left: 0; 
-      transform: translateY(-50%); /* จัดให้อยู่กึ่งกลางแนวตั้ง */
-      
-      width: 350px; /* กำหนดขนาดเริ่มต้น */
-      height: 400px;
-      max-width: 90vw; /* จำกัดขนาดไม่ให้เกินจอ */
-      max-height: 90vh;
-      
-      background: rgba(255, 255, 255, 0.95);
-      border: 2px solid #333;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-      z-index: 10; /* ให้อยู่เหนือแผนที่ */
-      display: none; /* ซ่อนตอนเริ่มต้น */
-      overflow: hidden; /* ซ่อนเนื้อหาที่เกินขอบ */
-      
-      /* ทำให้ลากได้ */
-      cursor: move;
-    }
+        #data-table-wrapper {
+            /* NEW: ไม่ต้องมี overflow scroll bar ถ้าเนื้อหาพอดี */
+            overflow: auto; 
+            padding: 8px;
+        }
 
-    #table-header {
-      background-color: #333;
-      color: white;
-      padding: 8px 12px;
-      cursor: move; /* ส่วนหัวที่ใช้ลาก */
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: bold;
-      flex-shrink: 0; /* ไม่ให้ header ถูกบีบเมื่อย่อขนาด container */
-    }
-
-    #table-header .close-btn {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 18px;
-      cursor: pointer;
-      padding: 0 5px;
-      line-height: 1;
-      font-weight: bold;
-    }
-    #table-header .close-btn:hover {
-      color: #ff4d4d;
-    }
-
-    #data-table-wrapper {
-      overflow-y: auto; /* ทำให้เนื้อหาตารางเลื่อนได้ */
-      height: calc(100% - 38px); /* ขนาดพื้นที่ที่เหลือสำหรับตาราง (หัก header ออก) */
-      padding: 0px 8px 8px; /* เว้นขอบด้านล่าง */
-    }
-
-    #data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    #data-table th, #data-table td {
-      border: 1px solid #ddd;
-      padding: 6px;
-      text-align: left;
-    }
-    #data-table th {
-      background-color: #f2f2f2;
-      position: sticky; /* ทำให้ Header ตารางติดอยู่ด้านบนเมื่อเลื่อน */
-      top: 0;
-      z-index: 2;
-    }
-
-    /* สไตล์สำหรับ interact.js resize handles (จุด/ขอบสำหรับปรับขนาด) */
-    .resize-container {
-      /* ต้องเพิ่ม position: relative; ให้กับ container ที่ใช้ interact.js ด้วย */
-      position: relative;
-    }
-
-    /* กำหนดขอบเขตที่สามารถลากเพื่อปรับขนาดได้ */
-    .interact-resizable {
-        box-sizing: border-box; /* ทำให้ padding/border ไม่ส่งผลต่อขนาด width/height */
-    }
-    .interact-resizable.resize-drag {
-        transition: none;
-    }
-
-    /* กำหนด cursor ที่เปลี่ยนเมื่ออยู่บริเวณขอบ */
-    .interact-resizable[data-y-action="resize"] { cursor: ns-resize; }
-    .interact-resizable[data-x-action="resize"] { cursor: ew-resize; }
-    .interact-resizable[data-x-action="resize"][data-y-action="resize"] { cursor: nwse-resize; }
-    /* เพิ่ม opacity เมื่อกำลังลาก/ปรับขนาด (เพื่อ feedback ให้ผู้ใช้) */
-    .interact-resizing {
-        opacity: 0.8; 
-    }
-
-  </style>
+        #data-table {
+            border-collapse: collapse;
+            width: 100%; /* ให้ตารางยืดตามความกว้างของ wrapper */
+            font-size: 14px;
+        }
+        #data-table th, #data-table td {
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+            text-align: left;
+        }
+        #data-table th {
+            background-color: #f2f2f2;
+            color: #333;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-  <div id="map"></div>
+    <div id="map"></div>
 
 <div id="bearing-info" style="display:none;">Bearing: -45.60°</div>
 <div id="zoom-info" style="display:none;">Zoom: 15.65</div>
@@ -195,388 +148,263 @@
 พิกัด: 99.535692, 11.231666
 ระยะไปขอบล่าง: [กำลังคำนวณ] km 
 ระยะไปขอบซ้าย: [กำลังคำนวณ] km
-  </div>
+</div>
 
-  <div id="draggable-table-container" class="interact-resizable">
-    <div id="table-header">
-      <span>ตารางข้อมูลพื้นที่</span>
-      <button id="close-table-btn" class="close-btn" title="ปิดตาราง">✕</button>
+    <div id="data-table-container">
+        <div id="window-header">
+            <span>ตารางข้อมูลพื้นที่</span>
+            <div class="control-buttons">
+                <button id="close-window-btn" title="ปิดตาราง"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div id="data-table-wrapper">
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>ลำดับ</th>
+                        <th>พื้นที่</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
     </div>
-    <div id="data-table-wrapper">
-      <table id="data-table">
-        <thead>
-          <tr>
-            <th>ลำดับ</th>
-            <th>พื้นที่</th>
-          </tr>
-        </thead>
-        <tbody>
-          </tbody>
-      </table>
-    </div>
-  </div>
 
 
-  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script> 
-  
-  <script>
-    // =======================================================
-    // ข้อมูลพื้นที่
-    // =======================================================
-    const locations = [
-      { id: "1", name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225347, lng: 99.538782, labelPos: 'bottom' },
-      { id: "2", name: "ป้อมข้างห้องน้ำ", lat: 11.225813, lng: 99.538542, labelPos: 'right' },
-      { id: "3", name: "ออฟฟิสหน้า SSI", lat: 11.225350, lng: 99.537677, labelPos: 'right' },
-      { id: "4", name: "ซุ้มศาลาพักผ่อนทางเดินไป Canteen", lat: 11.225668, lng: 99.537135, labelPos: 'right' },
-      { id: "5", name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.225793, lng: 99.536973, labelPos: 'left' },
-      { id: "6", name: "ด้านข้าง Canteen-ฝั่งซุ่มกระดังงา1", lat: 11.226141, lng: 99.536935, labelPos: 'right' },
-      { id: "7", name: "ออดิทรอเดียม", lat: 11.226557, lng: 99.537790, labelPos: 'bottom' },
-      { id: "8", name: "หลังออดิ Lab หลังงาน", lat: 11.226963,  lng: 99.537676, labelPos: 'top' },
-      { id: "9", name: "ข้าง Fire Station", lat: 11.225385, lng: 99.536293, labelPos: 'top' },
-      { id: "10", name: "ป้อม รปภ.104-TCS", lat: 11.231321, lng: 99.541750, labelPos: 'top' },
-      { id: "11", name: "Office Slab Yard", lat: 11.229289, lng: 99.533559, labelPos: 'top' },
-      { id: "12", name: "หน้า Store Room M1", lat: 11.230279, lng: 99.534693, labelPos: 'bottom' },
-      { id: "13", name: "จุดข้างห้องน้ำทำเนียบขาว", lat: 11.230676, lng: 99.534854, labelPos: 'right' },
-      { id: "14", name: "ประตูทางออกไป WTP", lat: 11.231035, lng: 99.534695, labelPos: 'top' },
-      { id: "15", name: "หน้าห้อง MMD ข้าง Line ผลิด HSM Level 6.5", lat: 11.229913, lng: 99.533969, labelPos: 'top' },
-      { id: "16", name: "ข้าง RM Pulpit", lat: 11.229717, lng: 99.533626, labelPos: 'top' },
-      { id: "17", name: "Roll shop HSM", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "18", name: "Roll shop HSM ข้างห้อง Canteen RSH/ข้างห้องน้ำ RSH", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "19", name: "หน้า Donw Coiler Pulpit หน้าห้อง Pulpit DC", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "20", name: "ประตู Motor Room(ทางด่วน) ประตูทางออก Ramp Level 6.5", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "20", name: "ห้อง Mortor Room ห้อง Automation Pulpit Level 6.5", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "21", name: "Discharging Pulpit", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "22", name: "WTP-บ่อสแกล", lat: 11.230965, lng: 99.533748, labelPos: 'top' },
-      { id: "23", name: "SK#1", lat: 11.231740, lng: 99.535804, labelPos: 'top' },
-      { id: "24", name: "SK#3 ด้านหน้า ห้องน้ำ", lat:  11.233425, lng: 99.536786, labelPos: 'top' },
-      { id: "25", name: "หน้า WHO", lat: 11.234008, lng: 99.537843, labelPos: 'top' },
-      { id: "26", name: "ER Work Shop", lat: 11.234602, lng: 99.537824, labelPos: 'top' },
-      { id: "27", name: "SK#2 ชั้นบน", lat: 11.235266, lng:  99.538055, labelPos: 'top' },
-      { id: "28", name: "ป้อม 105 ข้าง TCS", lat: 11.233820, lng: 99.539134, labelPos: 'top' },
-      { id: "29", name: "ป้อม รปภ. 103-WCE", lat: 11.236017, lng: 99.537023, labelPos: 'top' },
-      { id: "30", name: "Office POP", lat: 11.237150, lng: 99.538815, labelPos: 'top' },
-      { id: "31", name: "กระดาษห่อ Coil PO", lat: 11.236424, lng: 99.538723, labelPos: 'top' },
-      { id: "32", name: "Office CYS ชั้น1 ข้างห้องน้ำชั้น 1", lat: 11.233847, lng: 99.534942, labelPos: 'top' },
-      { id: "33", name: "อินเซ่ไฟฟ้า", lat: 11.232314, lng: 99.532847, labelPos: 'top' },
-      { id: "34", name: "อาคาร Wase Area", lat: 11.232662, lng:  99.532359, labelPos: 'top' },
-      { id: "35", name: "บริเวณจุดพักพนักงาน Cleaning", lat: 11.231295, lng: 99.533010, labelPos: 'top' },
-      { id: "36", name: "พื้นที่รับน้ำมันเตา", lat: 11.230280, lng:  99.532628, labelPos: 'top' },
-    ];
-    // =======================================================
+    <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script>
+        // =======================================================
+        // 1. ข้อมูลพื้นที่, Map Setup, Info Updates, Markers (เหมือนเดิม)
+        // =======================================================
+        const locations = [
+            { id: "1", name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225347, lng: 99.538782, labelPos: 'bottom' },
+            { id: "2", name: "ป้อมข้างห้องน้ำ", lat: 11.225813, lng: 99.538542, labelPos: 'right' },
+            { id: "3", name: "ออฟฟิสหน้า SSI", lat: 11.225350, lng: 99.537677, labelPos: 'right' },
+            { id: "4", name: "ซุ้มศาลาพักผ่อนทางเดินไป Canteen", lat: 11.225668, lng: 99.537135, labelPos: 'right' },
+            { id: "5", name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.225793, lng: 99.536973, labelPos: 'left' },
+            { id: "6", name: "ด้านข้าง Canteen-ฝั่งซุ่มกระดังงา1", lat: 11.226141, lng: 99.536935, labelPos: 'right' },
+            { id: "7", name: "ออดิทรอเดียม", lat: 11.226557, lng: 99.537790, labelPos: 'bottom' },
+            { id: "8", name: "หลังออดิ Lab หลังงาน", lat: 11.226963,  lng: 99.537676, labelPos: 'top' },
+            { id: "9", name: "ข้าง Fire Station", lat: 11.225385, lng: 99.536293, labelPos: 'top' },
+            { id: "10", name: "ป้อม รปภ.104-TCS", lat: 11.231321, lng: 99.541750, labelPos: 'top' },
+            { id: "11", name: "Office Slab Yard", lat: 11.229289, lng: 99.533559, labelPos: 'top' },
+            { id: "12", name: "หน้า Store Room M1", lat: 11.230279, lng: 99.534693, labelPos: 'bottom' },
+            { id: "13", name: "จุดข้างห้องน้ำทำเนียบขาว", lat: 11.230676, lng: 99.534854, labelPos: 'right' },
+            { id: "14", name: "ประตูทางออกไป WTP", lat: 11.231035, lng: 99.534695, labelPos: 'top' },
+            { id: "15", name: "หน้าห้อง MMD ข้าง Line ผลิด HSM Level 6.5", lat: 11.229913, lng: 99.533969, labelPos: 'top' },
+            { id: "16", name: "ข้าง RM Pulpit", lat: 11.229717, lng: 99.533626, labelPos: 'top' },
+            { id: "17", name: "Roll shop HSM", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+            { id: "18", name: "Roll shop HSM ข้างห้อง Canteen RSH/ข้างห้องน้ำ RSH", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+            { id: "19", name: "หน้า Donw Coiler Pulpit หน้าห้อง Pulpit DC", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+            { id: "20", name: "ประตู Motor Room(ทางด่วน) ประตูทางออก Ramp Level 6.5", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+            { id: "20", name: "ห้อง Mortor Room ห้อง Automation Pulpit Level 6.5", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+            { id: "21", name: "Discharging Pulpit", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+            { id: "22", name: "WTP-บ่อสแกล", lat: 11.230965, lng: 99.533748, labelPos: 'top' },
+            { id: "23", name: "SK#1", lat: 11.231740, lng: 99.535804, labelPos: 'top' },
+            { id: "24", name: "SK#3 ด้านหน้า ห้องน้ำ", lat:  11.233425, lng: 99.536786, labelPos: 'top' },
+            { id: "25", name: "หน้า WHO", lat: 11.234008, lng: 99.537843, labelPos: 'top' },
+            { id: "26", name: "ER Work Shop", lat: 11.234602, lng: 99.537824, labelPos: 'top' },
+            { id: "27", name: "SK#2 ชั้นบน", lat: 11.235266, lng:  99.538055, labelPos: 'top' },
+            { id: "28", name: "ป้อม 105 ข้าง TCS", lat: 11.233820, lng: 99.539134, labelPos: 'top' },
+            { id: "29", name: "ป้อม รปภ. 103-WCE", lat: 11.236017, lng: 99.537023, labelPos: 'top' },
+            { id: "30", name: "Office POP", lat: 11.237150, lng: 99.538815, labelPos: 'top' },
+            { id: "31", name: "กระดาษห่อ Coil PO", lat: 11.236424, lng: 99.538723, labelPos: 'top' },
+            { id: "32", name: "Office CYS ชั้น1 ข้างห้องน้ำชั้น 1", lat: 11.233847, lng: 99.534942, labelPos: 'top' },
+            { id: "33", name: "อินเซ่ไฟฟ้า", lat: 11.232314, lng: 99.532847, labelPos: 'top' },
+            { id: "34", name: "อาคาร Wase Area", lat: 11.232662, lng:  99.532359, labelPos: 'top' },
+            { id: "35", name: "บริเวณจุดพักพนักงาน Cleaning", lat: 11.231295, lng: 99.533010, labelPos: 'top' },
+            { id: "36", name: "พื้นที่รับน้ำมันเตา", lat: 11.230280, lng:  99.532628, labelPos: 'top' },
+        ];
+        
+        const targetLngLat = [99.535692, 11.231666];
+        const desiredOffsetSouth = 0.0010;
+        const desiredOffsetWest  = 0.0000;
+        const initialBearing = -45.6;
+        const initialZoom = 15.65;
+        const initialPitch = 0;
 
-    // (โค้ด MaplibreGL และ Controls เดิมของคุณอยู่ตรงนี้)
-    // ...
+        const angleRad = (initialBearing * Math.PI) / 180;
+        const offsetX_Lng = ((desiredOffsetWest * Math.cos(angleRad)) + (desiredOffsetSouth * Math.sin(angleRad)));
+        const offsetY_Lat = ((desiredOffsetSouth * Math.cos(angleRad)) - (desiredOffsetWest * Math.sin(angleRad)));
+        const center = [
+            targetLngLat[0] - offsetX_Lng,
+            targetLngLat[1] - offsetY_Lat
+        ];
 
-    // =======================================================
-    // 1. การตั้งค่าแผนที่ (ไม่เปลี่ยนแปลง)
-    // =======================================================
-    const targetLngLat = [99.535692, 11.231666];
-    const desiredOffsetSouth = 0.0010;
-    const desiredOffsetWest  = 0.0000;
-    const initialBearing = -45.6;
-    const initialZoom = 15.65;
-    const initialPitch = 0;
-
-    const angleRad = (initialBearing * Math.PI) / 180;
-    const offsetX_Lng = ((desiredOffsetWest * Math.cos(angleRad)) + (desiredOffsetSouth * Math.sin(angleRad)));
-    const offsetY_Lat = ((desiredOffsetSouth * Math.cos(angleRad)) - (desiredOffsetWest * Math.sin(angleRad)));
-    const center = [
-      targetLngLat[0] - offsetX_Lng,
-      targetLngLat[1] - offsetY_Lat
-    ];
-
-    const map = new maplibregl.Map({
-      container: 'map',
-      style: {
-        version: 8,
-        sources: {
-          satellite: {
-            type: 'raster',
-            tiles: [
-              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-            ],
-            tileSize: 256
-          }
-        },
-        layers: [
-          { id: 'satellite', type: 'raster', source: 'satellite' }
-        ]
-      },
-      center: center,
-      zoom: initialZoom,
-      bearing: initialBearing,
-      pitch: initialPitch,
-      maxZoom: 17.39
-    });
-
-    // =======================================================
-    // 2. Controls (เพิ่ม Navigation และ Reset ใน map.load ทำให้ทั้งสองอยู่ในตำแหน่งเดียวกัน) (เพิ่มปุ่มเปิด-ปิดตาราง)
-    // =======================================================
-    class ResetControl {
-      onAdd(mapInstance) {
-        this.map = mapInstance;
-        this.container = document.createElement('div');
-        this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-
-        const btn = document.createElement('button');
-        btn.className = 'reset-button';
-        btn.type = 'button';
-        btn.title = 'รีเซ็ตมุมมองแผนที่';
-        btn.setAttribute('aria-label','Reset map view');
-        btn.innerHTML = '<span>⟳</span>';
-
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.map.easeTo({
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    satellite: {
+                        type: 'raster',
+                        tiles: [
+                            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                        ],
+                        tileSize: 256
+                    }
+                },
+                layers: [
+                    { id: 'satellite', type: 'raster', source: 'satellite' }
+                ]
+            },
             center: center,
             zoom: initialZoom,
             bearing: initialBearing,
             pitch: initialPitch,
-            duration: 800
-          });
+            maxZoom: 17.39
         });
 
-        this.container.appendChild(btn);
-        return this.container;
-      }
-      onRemove() {
-        if (this.container && this.container.parentNode) {
-          this.container.parentNode.removeChild(this.container);
+        // =======================================================
+        // 2. Custom Controls (Reset และ Toggle Table)
+        // =======================================================
+        class ResetControl {
+            onAdd(mapInstance) {
+                this.map = mapInstance;
+                this.container = document.createElement('div');
+                this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+                const btn = document.createElement('button');
+                btn.className = 'reset-button';
+                btn.type = 'button';
+                btn.title = 'รีเซ็ตมุมมองแผนที่';
+                btn.setAttribute('aria-label','Reset map view');
+                btn.innerHTML = '<span>⟳</span>';
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.map.easeTo({ center: center, zoom: initialZoom, bearing: initialBearing, pitch: initialPitch, duration: 800 });
+                });
+                this.container.appendChild(btn);
+                return this.container;
+            }
+            onRemove() { /* ... */ }
         }
-        this.map = undefined;
-      }
-    }
 
-    // Class ใหม่สำหรับปุ่มเปิด-ปิดตาราง
-    class ToggleTableControl {
-      onAdd(mapInstance) {
-        this.map = mapInstance;
-        this.container = document.createElement('div');
-        this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+        // NEW: Toggle Table Control
+        class ToggleTableControl {
+            onAdd(mapInstance) {
+                this.map = mapInstance;
+                this.container = document.createElement('div');
+                this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 
-        this.btn = document.createElement('button');
-        this.btn.className = 'toggle-table-button';
-        this.btn.type = 'button';
-        this.btn.title = 'แสดง/ซ่อนตารางข้อมูล';
-        this.btn.setAttribute('aria-label','Toggle data table');
-        this.btn.innerHTML = '<span id="toggle-table-icon">☰</span>'; // Icon '☰'
+                this.btn = document.createElement('button');
+                this.btn.className = 'toggle-table-button';
+                this.btn.type = 'button';
+                this.btn.title = 'แสดง/ซ่อนตารางข้อมูล';
+                this.btn.innerHTML = '<i class="fas fa-table" id="toggle-table-icon"></i>'; 
 
-        // เพิ่ม Event Listener
-        this.btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          document.getElementById('draggable-table-container').style.display = 
-            document.getElementById('draggable-table-container').style.display === 'none' || document.getElementById('draggable-table-container').style.display === ''
-            ? 'flex' : 'none';
-          this.updateIcon();
+                this.btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const container = document.getElementById('data-table-container');
+                    
+                    if (container.style.display === 'none' || container.style.display === '') {
+                        // เปิดตาราง
+                        container.style.display = 'flex';
+                        this.btn.classList.add('active'); 
+                        this.btn.title = 'ซ่อนตารางข้อมูล';
+                    } else {
+                        // ปิดตาราง
+                        container.style.display = 'none';
+                        this.btn.classList.remove('active'); 
+                        this.btn.title = 'แสดงตารางข้อมูล';
+                    }
+                });
+
+                this.container.appendChild(this.btn);
+                return this.container;
+            }
+            onRemove() { /* ... */ }
+        }
+
+        map.on('load', () => {
+            map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+            map.addControl(new ResetControl(), 'bottom-right');
+            // เพิ่มปุ่ม Toggle Table
+            map.addControl(new ToggleTableControl(), 'bottom-right'); 
+            
+            updateBearing();
+            updateZoom();
+            updateDistances();
+            populateTable(); // โหลดข้อมูลตาราง
         });
 
-        this.container.appendChild(this.btn);
-        return this.container;
-      }
+        // ... (Bearing, Zoom, Distance Info updates - เหมือนเดิม) ...
+        const bearingInfo = document.getElementById('bearing-info');
+        const zoomInfo    = document.getElementById('zoom-info');
+        function updateBearing() { bearingInfo.innerText = `Bearing: ${map.getBearing().toFixed(2)}°`; }
+        function updateZoom()    { zoomInfo.innerText = `Zoom: ${map.getZoom().toFixed(2)}`; }
+        map.on('rotate', updateBearing);
+        map.on('zoom', updateZoom);
 
-      updateIcon() {
-        const isVisible = document.getElementById('draggable-table-container').style.display !== 'none';
-        document.getElementById('toggle-table-icon').innerHTML = isVisible ? '✕' : '☰';
-        this.btn.title = isVisible ? 'ซ่อนตารางข้อมูล' : 'แสดงตารางข้อมูล';
-      }
-
-      onRemove() {
-        if (this.container && this.container.parentNode) {
-          this.container.parentNode.removeChild(this.container);
+        const distanceInfo = document.getElementById('distance-info');
+        function updateDistances() {
+            const bounds = map.getBounds();
+            const point = turf.point(targetLngLat);
+            const south = turf.point([targetLngLat[0], bounds.getSouth()]);
+            const west  = turf.point([bounds.getWest(), targetLngLat[1]]);
+            const distSouth = turf.distance(point, south, {units: 'kilometers'}).toFixed(2);
+            const distWest  = turf.distance(point, west,  {units: 'kilometers'}).toFixed(2);
+            distanceInfo.innerText =
+                `พิกัด: ${targetLngLat[0]}, ${targetLngLat[1]}\n` +
+                `ระยะไปขอบล่าง: ${distSouth} km\n` +
+                `ระยะไปขอบซ้าย: ${distWest} km`;
         }
-        this.map = undefined;
-      }
-    }
-
-
-    map.on('load', () => {
-      // เพิ่ม NavigationControl (ปุ่ม zoom/rotate)
-      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-      // เพิ่ม ResetControl
-      map.addControl(new ResetControl(), 'bottom-right');
-      // เพิ่มปุ่มเปิด-ปิดตารางใหม่
-      map.addControl(new ToggleTableControl(), 'bottom-right'); // อยู่ต่อจากปุ่มอื่น
-
-      // อัพเดต UI หลังโหลด
-      updateBearing();
-      updateZoom();
-      updateDistances();
-      populateTable(); // เพิ่มฟังก์ชันเรียกใส่ข้อมูลในตาราง
-    });
-
-    // =======================================================
-    // 3. Bearing & Zoom Info (ไม่เปลี่ยนแปลง)
-    // =======================================================
-    const bearingInfo = document.getElementById('bearing-info');
-    const zoomInfo    = document.getElementById('zoom-info');
-    function updateBearing() { bearingInfo.innerText = `Bearing: ${map.getBearing().toFixed(2)}°`; }
-    function updateZoom()    { zoomInfo.innerText = `Zoom: ${map.getZoom().toFixed(2)}`; }
-
-    map.on('rotate', updateBearing);
-    map.on('zoom', updateZoom);
-
-    // =======================================================
-    // 4. Distance Info (ไม่เปลี่ยนแปลง)
-    // =======================================================
-    const distanceInfo = document.getElementById('distance-info');
-    function updateDistances() {
-      const bounds = map.getBounds();
-      const point = turf.point(targetLngLat);
-      const south = turf.point([targetLngLat[0], bounds.getSouth()]);
-      const west  = turf.point([bounds.getWest(), targetLngLat[1]]);
-      const distSouth = turf.distance(point, south, {units: 'kilometers'}).toFixed(2);
-      const distWest  = turf.distance(point, west,  {units: 'kilometers'}).toFixed(2);
-      distanceInfo.innerText =
-        `พิกัด: ${targetLngLat[0]}, ${targetLngLat[1]}\n` +
-        `ระยะไปขอบล่าง: ${distSouth} km\n` +
-        `ระยะไปขอบซ้าย: ${distWest} km`;
-    }
-    map.on('moveend', updateDistances);
-
-    // =======================================================
-    // 5. เพิ่มหมุดหลายจุด (Marker + Label) (ไม่เปลี่ยนแปลง)
-    // =======================================================
-    const labelOffsetMap = {
-      top:    [0, -10],
-      right:  [20, 10],
-      bottom: [0, 30],
-      left:   [-20, 10]
-    };
-    
-    locations.forEach(loc => {
-      const markerDiv = document.createElement('div');
-      markerDiv.className = 'red-dot-marker';
-      new maplibregl.Marker({ element: markerDiv, anchor: 'center' })
-        .setLngLat([loc.lng, loc.lat])
-        .addTo(map);
-      
-      const labelDiv = document.createElement('div');
-      labelDiv.className = 'custom-text-label';
-      labelDiv.innerText = loc.id;
-      
-      const offset = labelOffsetMap[loc.labelPos] || [0, -20]; // กำหนด default เป็น top
-      
-      new maplibregl.Marker({ element: labelDiv, anchor: 'bottom', offset: offset })
-        .setLngLat([loc.lng, loc.lat])
-        .setPopup(new maplibregl.Popup({ offset: 25 }).setText(loc.name))
-        .addTo(map);
-    });
-    
-    // =======================================================
-    // 6. ฟังก์ชันตารางและ Drag/Resize
-    // =======================================================
-    
-    const tableContainer = document.getElementById('draggable-table-container');
-    const tableBody = document.querySelector('#data-table tbody');
-    const closeTableBtn = document.getElementById('close-table-btn');
-
-    // ฟังก์ชันใส่ข้อมูลในตาราง
-    function populateTable() {
-      tableBody.innerHTML = ''; // ล้างข้อมูลเดิม
-      locations.forEach(loc => {
-        const row = tableBody.insertRow();
-        const idCell = row.insertCell();
-        const nameCell = row.insertCell();
-        idCell.textContent = loc.id;
-        nameCell.textContent = loc.name;
-      });
-    }
-
-    // จัดการการปิดตารางด้วยปุ่ม Close ใน Header
-    closeTableBtn.addEventListener('click', () => {
-      tableContainer.style.display = 'none';
-      // อัพเดตไอคอนของปุ่มเปิด-ปิดตารางหลักด้วย
-      document.getElementById('toggle-table-icon').innerHTML = '☰';
-      document.querySelector('.toggle-table-button').title = 'แสดงตารางข้อมูล';
-    });
-
-    // ใช้ interact.js สำหรับลากและปรับขนาดตาราง
-    let x = 0;
-    let y = 0;
-
-    interact(tableContainer)
-    .draggable({
-      // ส่วนที่ใช้ลากคือ header
-      allowFrom: '#table-header',
-      listeners: {
-        start (event) {
-            // เมื่อเริ่มลาก ให้ตารางอยู่บนสุด
-            tableContainer.style.zIndex = 100; 
-        },
-        move (event) {
-          x += event.dx
-          y += event.dy
-          
-          // ใช้ transform เพื่อให้การลากราบรื่น
-          event.target.style.transform = `translate(${x}px, ${y}px)`;
-        },
-        end (event) {
-            // คืนค่า zIndex หลังลากเสร็จ
-            tableContainer.style.zIndex = 10;
-        }
-      }
-    })
-    .resizable({
-      // ให้ปรับขนาดได้จากทุกด้าน ยกเว้นด้านบนซ้าย
-      edges: { left: true, right: true, bottom: true, top: true },
-      
-      listeners: {
-        move (event) {
-          let { x, y } = event.target.dataset
-          x = (parseFloat(x) || 0) + event.deltaRect.left
-          y = (parseFloat(y) || 0) + event.deltaRect.top
-
-          Object.assign(event.target.style, {
-            width: `${event.rect.width}px`,
-            height: `${event.rect.height}px`,
-            // ใช้ transform เพื่ออัพเดตตำแหน่งขณะปรับขนาด
-            transform: `translate(${x}px, ${y}px)`
-          })
-          
-          Object.assign(event.target.dataset, { x, y })
-        },
-        start(event) {
-            // เมื่อเริ่มปรับขนาด ให้ตารางอยู่บนสุด
-            tableContainer.style.zIndex = 100; 
-        },
-        end(event) {
-            // คืนค่า zIndex หลังปรับขนาดเสร็จ
-            tableContainer.style.zIndex = 10;
-        }
-      },
-      // จำกัดขนาด
-      modifiers: [
-        interact.modifiers.restrictSize({
-          min: { width: 200, height: 250 } // กำหนดขนาดขั้นต่ำ
-        })
-      ]
-    })
-    // ตั้งค่าเริ่มต้นของตำแหน่ง x, y สำหรับการลากครั้งแรก (เพื่อ override transform: translateY(-50%) ตอนเริ่มต้น)
-    // การลากครั้งแรกต้องย้ายจากตำแหน่งเริ่มต้น (0, -50% ของความสูงตัวเอง)
-    // เนื่องจากตอนเริ่มต้น CSS ใช้ `top: 50%; left: 0; transform: translateY(-50%);`
-    // เราต้องคำนวณตำแหน่งเริ่มต้นจาก CSS เดิมเพื่อให้การลากครั้งแรกรู้ตำแหน่งที่ถูกต้อง
-    
-    // เมื่อ map โหลดเสร็จ หรือหลังจากตารางแสดงผลครั้งแรก (เช่นเมื่อผู้ใช้กดปุ่ม)
-    // เราควรตั้งค่า x, y ให้ถูกต้องตามตำแหน่งปัจจุบัน
-    map.on('load', () => {
-        // คำนวณ x, y เริ่มต้นจากตำแหน่งซ้ายสุดและกึ่งกลางจอ
-        const rect = tableContainer.getBoundingClientRect();
-        // x เริ่มต้นจาก 0 (เนื่องจาก left: 0)
-        x = rect.left; 
-        // y เริ่มต้นจากกึ่งกลางจอ แต่ถูก offset ด้วย -50% ของความสูง 
-        // เราต้องชดเชยการเลื่อนนี้กลับไปที่ 0 เพื่อให้การลากทำงานอย่างถูกต้อง
-        y = rect.top + rect.height / 2 - window.innerHeight / 2;
+        map.on('moveend', updateDistances);
         
-        // กำหนด x, y เริ่มต้นสำหรับ interact.js
-        tableContainer.dataset.x = x;
-        tableContainer.dataset.y = y;
+        // ... (Marker logic - เหมือนเดิม) ...
+        const labelOffsetMap = {
+            top:    [0, -10], right:  [20, 10], bottom: [0, 30], left:   [-20, 10]
+        };
         
-        // ใช้ transform เพื่อวางตำแหน่งเริ่มต้นที่ถูกต้อง (left: 0, center)
-        tableContainer.style.transform = `translate(${x}px, ${y}px)`;
-    });
-    
-  </script>
+        locations.forEach(loc => {
+            const markerDiv = document.createElement('div');
+            markerDiv.className = 'red-dot-marker';
+            new maplibregl.Marker({ element: markerDiv, anchor: 'center' })
+                .setLngLat([loc.lng, loc.lat])
+                .addTo(map);
+            
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'custom-text-label';
+            labelDiv.innerText = loc.id;
+            
+            const offset = labelOffsetMap[loc.labelPos] || [0, -20]; 
+            
+            new maplibregl.Marker({ element: labelDiv, anchor: 'bottom', offset: offset })
+                .setLngLat([loc.lng, loc.lat])
+                .setPopup(new maplibregl.Popup({ offset: 25 }).setText(loc.name))
+                .addTo(map);
+        });
+
+
+        // =======================================================
+        // 3. ฟังก์ชันตาราง (Close & Populate)
+        // =======================================================
+        const tableContainer = document.getElementById('data-table-container');
+        const tableBody = document.querySelector('#data-table tbody');
+        const closeWindowBtn = document.getElementById('close-window-btn');
+        
+        function populateTable() {
+            tableBody.innerHTML = ''; 
+            locations.forEach(loc => {
+                const row = tableBody.insertRow();
+                const idCell = row.insertCell();
+                const nameCell = row.insertCell();
+                idCell.textContent = loc.id;
+                nameCell.textContent = loc.name;
+            });
+        }
+
+        function closeWindow() {
+            tableContainer.style.display = 'none';
+            // อัพเดตสถานะปุ่ม Toggle
+            document.querySelector('.toggle-table-button').classList.remove('active');
+            document.querySelector('.toggle-table-button').title = 'แสดงตารางข้อมูล';
+        }
+
+        // Event Listener สำหรับปุ่ม Close
+        closeWindowBtn.addEventListener('click', closeWindow);
+        
+    </script>
 </body>
 </html>
