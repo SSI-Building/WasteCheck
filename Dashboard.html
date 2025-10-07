@@ -4,77 +4,172 @@
   <meta charset="UTF-8">
   <title>Map-WasteCheck</title>
   <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
+    /* ----------------------------------------------------- */
+    /* ส่วน Map และ Info Controls */
+    /* ----------------------------------------------------- */
     body { margin:0; padding:0; }
     #map { position:absolute; top:0; bottom:0; width:100%; }
-
     .custom-text-label {
-      background-color: #fff;
-      color: #333;
-      padding: 0px 6px;
-      border-radius: 5px;
-      font-size: 12px;
-      font-weight: bold;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-      white-space: nowrap;
-      pointer-events: none;
-      margin: 0;
+      background-color: #fff; color: #333; padding: 0px 6px; border-radius: 5px; font-size: 12px; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.3); white-space: nowrap; pointer-events: none; margin: 0;
     }
-
     .red-dot-marker {
-      width: 10px;
-      height: 10px;
-      background-color: #FF0000;
-      border-radius: 100%;
-      border: 1px solid white;
-      box-shadow: 0 0 1px rgba(0,0,0,0.5);
-      pointer-events: auto;
+      width: 10px; height: 10px; background-color: #FF0000; border-radius: 100%; border: 1px solid white; box-shadow: 0 0 1px rgba(0,0,0,0.5); pointer-events: auto;
     }
-
     #bearing-info, #zoom-info, #distance-info {
-      position: absolute;
-      background-color: rgba(255,255,255,0.9);
-      border: 1px solid #333;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 14px;
-      z-index: 1;
-      padding: 5px 10px;
+      position: absolute; background-color: rgba(255,255,255,0.9); border: 1px solid #333; border-radius: 6px; font-weight: bold; font-size: 14px; z-index: 1; padding: 5px 10px;
     }
     #bearing-info { top: 10px; left: 10px; }
     #zoom-info    { top: 10px; right: 10px; }
     #distance-info { bottom: 10px; left: 10px; white-space: pre-line; }
 
-    /* ------ ปรับสไตล์ให้ปุ่มในกลุ่ม control มีขนาด/มาร์จินเหมือนกัน ------ */
-    .maplibregl-ctrl-group > button,
-    .maplibregl-ctrl-group > .maplibregl-ctrl-icon,
-    .maplibregl-ctrl-group > .reset-button {
-      width: 28px;
-      height: 28px;
-      margin: 2px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.12);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-      cursor: pointer;
-      padding: 0;
+    /* Control Buttons Style */
+    .maplibregl-ctrl-group > button, .maplibregl-ctrl-group > .maplibregl-ctrl-icon, .maplibregl-ctrl-group > .reset-button, .maplibregl-ctrl-group > .toggle-table-button {
+      width: 28px; height: 28px; margin: 2px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 4px rgba(0,0,0,0.15); cursor: pointer; padding: 0;
     }
-    .maplibregl-ctrl-group > button:hover,
-    .maplibregl-ctrl-group > .reset-button:hover {
-      background: #f0f0f0;
-      transform: scale(1.04);
+    .maplibregl-ctrl-group > button:hover, .maplibregl-ctrl-group > .reset-button:hover, .maplibregl-ctrl-group > .toggle-table-button:hover { 
+      background: #f0f0f0; transform: scale(1.04);
+    }
+    .reset-button span {
+      font-size: 16px; line-height: 1; display: inline-block; transform: translateY(-1px);
+    }
+    /* NEW: สไตล์เฉพาะสำหรับปุ่ม Toggle Table */
+    .toggle-table-button.active {
+        background-color: #333 !important;
+        color: white;
+    }
+    .toggle-table-button.active:hover {
+        background-color: #555 !important;
+        color: white;
     }
 
-    /* reset-button มีไอคอนใหญ่ขึ้นเล็กน้อย */
-    .reset-button span {
-      font-size: 16px;
-      line-height: 1;
-      display: inline-block;
-      transform: translateY(-1px);
+
+    /* ----------------------------------------------------- */
+    /* สไตล์สำหรับตารางที่ลากและปรับขนาดได้ (Window Style) */
+    /* ----------------------------------------------------- */
+    #draggable-table-container {
+      position: absolute;
+      top: 50%;
+      left: 0; 
+      transform: translateY(-50%); 
+      
+      width: 400px; 
+      height: 450px;
+      min-width: 250px;
+      min-height: 300px;
+      max-width: 90vw; 
+      max-height: 90vh;
+      
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #777;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 10; 
+      display: none; 
+      overflow: hidden; 
+      flex-direction: column; 
     }
+
+    #draggable-table-container:not(.dragging):not(.resizing) {
+        transition: all 0.2s ease-out; 
+    }
+
+    #window-header {
+      background-color: #333;
+      color: white;
+      padding: 4px 10px;
+      cursor: grab; 
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    
+    #window-header .control-buttons {
+        display: flex;
+        gap: 0px; 
+    }
+
+    #window-header .control-buttons button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        line-height: 1;
+        width: 30px; 
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border-radius: 0; 
+        margin: 0 1px; 
+    }
+    #window-header .control-buttons button:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+    #window-header #close-window-btn:hover {
+        background-color: #e74c3c; 
+    }
+
+    #data-table-wrapper {
+      overflow-y: auto; 
+      flex-grow: 1; 
+      padding: 8px;
+    }
+    
+    /* สไตล์เมื่อย่อขนาด (Minimize - เป็นแท็บที่ขอบล่างซ้าย) */
+    #draggable-table-container.minimized {
+        bottom: 0px !important; 
+        left: 0px !important;
+        top: auto !important;
+        right: auto !important;
+        transform: none !important; 
+
+        /* NEW: ปรับให้ดูเป็นแท็บ */
+        width: 300px !important; 
+        height: auto !important;
+        max-height: 35px; /* ความสูงแถบ */
+        border-radius: 0 8px 0 0; 
+        border-left: 1px solid #777;
+        border-right: 1px solid #777;
+        border-bottom: none;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.3); /* ให้เงาอยู่ด้านบน */
+        cursor: pointer; 
+    }
+    
+    /* FIX: ซ่อนเนื้อหาตารางอย่างสมบูรณ์เมื่อย่อขนาด */
+    #draggable-table-container.minimized #data-table-wrapper {
+        display: none !important; 
+    }
+    #draggable-table-container.minimized #window-header {
+        cursor: pointer; 
+        padding: 0 5px 0 10px;
+    }
+    
+    /* สไตล์เมื่อขยายเต็มจอ (Maximize) */
+    #draggable-table-container.maximized {
+        width: 100vw !important;
+        height: 100vh !important;
+        top: 0 !important;
+        left: 0 !important;
+        transform: none !important;
+        border-radius: 0;
+        cursor: grab; 
+    }
+    
+    /* ปรับปรุงประสิทธิภาพและความลื่นไหลของ Interact.js */
+    .interact-resizable.dragging,
+    .interact-resizable.resizing {
+        transition: none !important; 
+    }
+    .interact-resizable.dragging #window-header { cursor: grabbing; }
+    .interact-resizable[data-y-action="resize"] { cursor: ns-resize; }
+    .interact-resizable[data-x-action="resize"] { cursor: ew-resize; }
+    .interact-resizable[data-x-action="resize"][data-y-action="resize"] { cursor: nwse-resize; }
   </style>
 </head>
 <body>
@@ -88,12 +183,78 @@
 ระยะไปขอบซ้าย: [กำลังคำนวณ] km
   </div>
 
+  <div id="draggable-table-container" class="interact-resizable">
+    <div id="window-header">
+      <span>ตารางข้อมูลพื้นที่</span>
+      <div class="control-buttons">
+          <button id="minimize-btn" title="ย่อหน้าต่าง"><i class="fas fa-minus"></i></button>
+          <button id="maximize-btn" title="ขยายเต็มจอ"><i class="far fa-square"></i></button>
+          <button id="close-window-btn" title="ปิดตาราง"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div id="data-table-wrapper">
+      <table id="data-table">
+        <thead>
+          <tr>
+            <th>ลำดับ</th>
+            <th>พื้นที่</th>
+          </tr>
+        </thead>
+        <tbody>
+          </tbody>
+      </table>
+    </div>
+  </div>
+
+
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script> 
+  
   <script>
     // =======================================================
-    // 1. การตั้งค่าแผนที่
+    // 1. ข้อมูลพื้นที่, Map Setup, Info Updates, Markers (ไม่เปลี่ยนแปลง)
     // =======================================================
+    const locations = [
+      { id: "1", name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225347, lng: 99.538782, labelPos: 'bottom' },
+      { id: "2", name: "ป้อมข้างห้องน้ำ", lat: 11.225813, lng: 99.538542, labelPos: 'right' },
+      { id: "3", name: "ออฟฟิสหน้า SSI", lat: 11.225350, lng: 99.537677, labelPos: 'right' },
+      { id: "4", name: "ซุ้มศาลาพักผ่อนทางเดินไป Canteen", lat: 11.225668, lng: 99.537135, labelPos: 'right' },
+      { id: "5", name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.225793, lng: 99.536973, labelPos: 'left' },
+      { id: "6", name: "ด้านข้าง Canteen-ฝั่งซุ่มกระดังงา1", lat: 11.226141, lng: 99.536935, labelPos: 'right' },
+      { id: "7", name: "ออดิทรอเดียม", lat: 11.226557, lng: 99.537790, labelPos: 'bottom' },
+      { id: "8", name: "หลังออดิ Lab หลังงาน", lat: 11.226963,  lng: 99.537676, labelPos: 'top' },
+      { id: "9", name: "ข้าง Fire Station", lat: 11.225385, lng: 99.536293, labelPos: 'top' },
+      { id: "10", name: "ป้อม รปภ.104-TCS", lat: 11.231321, lng: 99.541750, labelPos: 'top' },
+      { id: "11", name: "Office Slab Yard", lat: 11.229289, lng: 99.533559, labelPos: 'top' },
+      { id: "12", name: "หน้า Store Room M1", lat: 11.230279, lng: 99.534693, labelPos: 'bottom' },
+      { id: "13", name: "จุดข้างห้องน้ำทำเนียบขาว", lat: 11.230676, lng: 99.534854, labelPos: 'right' },
+      { id: "14", name: "ประตูทางออกไป WTP", lat: 11.231035, lng: 99.534695, labelPos: 'top' },
+      { id: "15", name: "หน้าห้อง MMD ข้าง Line ผลิด HSM Level 6.5", lat: 11.229913, lng: 99.533969, labelPos: 'top' },
+      { id: "16", name: "ข้าง RM Pulpit", lat: 11.229717, lng: 99.533626, labelPos: 'top' },
+      { id: "17", name: "Roll shop HSM", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+      { id: "18", name: "Roll shop HSM ข้างห้อง Canteen RSH/ข้างห้องน้ำ RSH", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+      { id: "19", name: "หน้า Donw Coiler Pulpit หน้าห้อง Pulpit DC", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+      { id: "20", name: "ประตู Motor Room(ทางด่วน) ประตูทางออก Ramp Level 6.5", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+      { id: "20", name: "ห้อง Mortor Room ห้อง Automation Pulpit Level 6.5", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+      { id: "21", name: "Discharging Pulpit", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
+      { id: "22", name: "WTP-บ่อสแกล", lat: 11.230965, lng: 99.533748, labelPos: 'top' },
+      { id: "23", name: "SK#1", lat: 11.231740, lng: 99.535804, labelPos: 'top' },
+      { id: "24", name: "SK#3 ด้านหน้า ห้องน้ำ", lat:  11.233425, lng: 99.536786, labelPos: 'top' },
+      { id: "25", name: "หน้า WHO", lat: 11.234008, lng: 99.537843, labelPos: 'top' },
+      { id: "26", name: "ER Work Shop", lat: 11.234602, lng: 99.537824, labelPos: 'top' },
+      { id: "27", name: "SK#2 ชั้นบน", lat: 11.235266, lng:  99.538055, labelPos: 'top' },
+      { id: "28", name: "ป้อม 105 ข้าง TCS", lat: 11.233820, lng: 99.539134, labelPos: 'top' },
+      { id: "29", name: "ป้อม รปภ. 103-WCE", lat: 11.236017, lng: 99.537023, labelPos: 'top' },
+      { id: "30", name: "Office POP", lat: 11.237150, lng: 99.538815, labelPos: 'top' },
+      { id: "31", name: "กระดาษห่อ Coil PO", lat: 11.236424, lng: 99.538723, labelPos: 'top' },
+      { id: "32", name: "Office CYS ชั้น1 ข้างห้องน้ำชั้น 1", lat: 11.233847, lng: 99.534942, labelPos: 'top' },
+      { id: "33", name: "อินเซ่ไฟฟ้า", lat: 11.232314, lng: 99.532847, labelPos: 'top' },
+      { id: "34", name: "อาคาร Wase Area", lat: 11.232662, lng:  99.532359, labelPos: 'top' },
+      { id: "35", name: "บริเวณจุดพักพนักงาน Cleaning", lat: 11.231295, lng: 99.533010, labelPos: 'top' },
+      { id: "36", name: "พื้นที่รับน้ำมันเตา", lat: 11.230280, lng:  99.532628, labelPos: 'top' },
+    ];
+    
     const targetLngLat = [99.535692, 11.231666];
     const desiredOffsetSouth = 0.0010;
     const desiredOffsetWest  = 0.0000;
@@ -133,36 +294,21 @@
       maxZoom: 17.39
     });
 
-    // =======================================================
-    // 2. Controls (เพิ่ม Navigation และ Reset ใน map.load ทำให้ทั้งสองอยู่ในตำแหน่งเดียวกัน)
-    // =======================================================
     class ResetControl {
       onAdd(mapInstance) {
         this.map = mapInstance;
-        // ใช้ class เดียวกับกลุ่ม control เพื่อให้เข้า layout เดียวกับปุ่ม zoom/rotate
         this.container = document.createElement('div');
         this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-
         const btn = document.createElement('button');
         btn.className = 'reset-button';
         btn.type = 'button';
         btn.title = 'รีเซ็ตมุมมองแผนที่';
         btn.setAttribute('aria-label','Reset map view');
         btn.innerHTML = '<span>⟳</span>';
-
-        // ฟังก์ชันรีเซ็ตการมุมมอง
         btn.addEventListener('click', (e) => {
-          // ป้องกันไม่ให้เหตุการณ์กระทบ control อื่น
           e.stopPropagation();
-          this.map.easeTo({
-            center: center,
-            zoom: initialZoom,
-            bearing: initialBearing,
-            pitch: initialPitch,
-            duration: 800
-          });
+          this.map.easeTo({ center: center, zoom: initialZoom, bearing: initialBearing, pitch: initialPitch, duration: 800 });
         });
-
         this.container.appendChild(btn);
         return this.container;
       }
@@ -174,33 +320,79 @@
       }
     }
 
-    // เพิ่ม controls หลัง map โหลดเสร็จ เพื่อให้ทั้งสองถูกวางในตำแหน่งเดียวกัน (bottom-right)
-    map.on('load', () => {
-      // เพิ่ม NavigationControl (ปุ่ม zoom/rotate)
-      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-      // เพิ่ม ResetControl ใน bottom-right ด้วย (จะเข้ากลุ่มเดียวกันโดย class ของ container)
-      map.addControl(new ResetControl(), 'bottom-right');
+    // NEW: ปรับปรุง ToggleTableControl
+    class ToggleTableControl {
+      onAdd(mapInstance) {
+        this.map = mapInstance;
+        this.container = document.createElement('div');
+        this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 
-      // อัพเดต UI หลังโหลด
+        this.btn = document.createElement('button');
+        this.btn.className = 'toggle-table-button';
+        this.btn.type = 'button';
+        this.btn.title = 'แสดง/ซ่อนตารางข้อมูล';
+        // ใช้ไอคอน fa-table หรือ fa-list ที่สื่อความหมาย
+        this.btn.innerHTML = '<i class="fas fa-table" id="toggle-table-icon"></i>'; 
+
+        this.btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const container = document.getElementById('draggable-table-container');
+          
+          if (container.style.display === 'none' || container.style.display === '') {
+              // ถ้าปิดอยู่ -> เปิด
+              container.style.display = 'flex';
+              
+              // NEW: ถ้า Minimize อยู่ ให้ Restore กลับมาเป็นหน้าต่างลอย
+              if (container.classList.contains('minimized')) {
+                minimizeWindow(); // เรียก minimizeWindow เพื่อ toggle กลับมา Restore
+              } else {
+                  // ถ้าไม่ได้ Minimize ให้ Ensure ว่าไม่ Maximize และไอคอน Maximize ถูกต้อง
+                  container.classList.remove('maximized');
+                  document.getElementById('maximize-btn').innerHTML = '<i class="far fa-square"></i>';
+                  isMaximized = false;
+              }
+
+              this.btn.classList.add('active'); // เปลี่ยนสถานะปุ่มเป็น Active
+              this.btn.title = 'ซ่อนตารางข้อมูล';
+
+          } else {
+              // ถ้าเปิดอยู่ -> ปิด
+              container.style.display = 'none';
+              this.btn.classList.remove('active'); // เปลี่ยนสถานะปุ่มเป็น Inactive
+              this.btn.title = 'แสดงตารางข้อมูล';
+          }
+        });
+
+        this.container.appendChild(this.btn);
+        return this.container;
+      }
+
+      onRemove() {
+        if (this.container && this.container.parentNode) {
+          this.container.parentNode.removeChild(this.container);
+        }
+        this.map = undefined;
+      }
+    }
+
+
+    map.on('load', () => {
+      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+      map.addControl(new ResetControl(), 'bottom-right');
+      map.addControl(new ToggleTableControl(), 'bottom-right'); 
       updateBearing();
       updateZoom();
       updateDistances();
+      populateTable(); 
     });
 
-    // =======================================================
-    // 3. Bearing & Zoom Info
-    // =======================================================
     const bearingInfo = document.getElementById('bearing-info');
     const zoomInfo    = document.getElementById('zoom-info');
     function updateBearing() { bearingInfo.innerText = `Bearing: ${map.getBearing().toFixed(2)}°`; }
     function updateZoom()    { zoomInfo.innerText = `Zoom: ${map.getZoom().toFixed(2)}`; }
-
     map.on('rotate', updateBearing);
     map.on('zoom', updateZoom);
 
-    // =======================================================
-    // 4. Distance Info
-    // =======================================================
     const distanceInfo = document.getElementById('distance-info');
     function updateDistances() {
       const bounds = map.getBounds();
@@ -216,74 +408,263 @@
     }
     map.on('moveend', updateDistances);
 
-    // =======================================================
-    // พิ่มหมุดหลายจุด (Marker + Label)
-    // =======================================================
-      const locations = [
-      { id: "1", name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225347, lng: 99.538782, labelPos: 'bottom' },
-      { id: "2", name: "ป้อมข้างห้องน้ำ", lat: 11.225813, lng: 99.538542, labelPos: 'right' },
-      { id: "3", name: "ออฟฟิสหน้า SSI", lat: 11.225350, lng: 99.537677, labelPos: 'right' },
-      { id: "4", name: "ซุ้มศาลาพักผ่อนทางเดินไป Canteen", lat: 11.225668, lng: 99.537135, labelPos: 'right' },
-      { id: "5", name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.225793, lng: 99.536973, labelPos: 'left' },
-      { id: "6", name: "ด้านข้าง Canteen-ฝั่งซุ่มกระดังงา1", lat: 11.226141, lng: 99.536935, labelPos: 'right' },
-      { id: "7", name: "ออดิทรอเดียม", lat: 11.226557, lng: 99.537790, labelPos: 'bottom' },
-      { id: "8", name: "หลังออดิ Lab หลังงาน", lat: 11.226963,  lng: 99.537676, labelPos: 'top' },
-      { id: "9", name: "ข้าง Fire Station", lat: 11.225385, lng: 99.536293, labelPos: 'top' },
-      { id: "10", name: "ป้อม รปภ.104-TCS", lat: 11.231321, lng: 99.541750, labelPos: 'top' },
-      { id: "11", name: "Office Slab Yard", lat: 11.229289, lng: 99.533559, labelPos: 'top' },
-      { id: "12", name: "หน้า Store Room M1", lat: 11.230279, lng: 99.534693, labelPos: 'bottom' },
-      { id: "13", name: "จุดข้างห้องน้ำทำเนียบขาว", lat: 11.230676, lng: 99.534854, labelPos: 'right' },
-      { id: "14", name: "ประตูทางออกไป WTP", lat: 11.231035, lng: 99.534695, labelPos: 'top' },
-      { id: "15", name: "หน้าห้อง MMD ข้าง Line ผลิด HSM Level 6.5", lat: 11.229913, lng: 99.533969, labelPos: 'top' },
-      { id: "16", name: "ข้าง RM Pulpit", lat: 11.229717, lng: 99.533626, labelPos: 'top' },
-      { id: "17", name: "Roll shop HSM", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "18", name: "Roll shop HSM ข้างห้อง Canteen RSH/ข้างห้องน้ำ RSH", lat: 11.230473, lng: 99.534388, labelPos: 'top' }, // ยังไม่แก้
-      { id: "19", name: "หน้า Donw Coiler Pulpit หน้าห้อง Pulpit DC", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "20", name: "ประตู Motor Room(ทางด่วน) ประตูทางออก Ramp Level 6.5", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "20", name: "ห้อง Mortor Room ห้อง Automation Pulpit Level 6.5", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "21", name: "Discharging Pulpit", lat: 11.230473, lng: 99.534388, labelPos: 'top' },
-      { id: "22", name: "WTP-บ่อสแกล", lat: 11.230965, lng: 99.533748, labelPos: 'top' },
-      { id: "23", name: "SK#1", lat: 11.231740, lng: 99.535804, labelPos: 'top' },
-      { id: "24", name: "SK#3 ด้านหน้า ห้องน้ำ", lat:  11.233425, lng: 99.536786, labelPos: 'top' },
-      { id: "25", name: "หน้า WHO", lat: 11.234008, lng: 99.537843, labelPos: 'top' },
-      { id: "26", name: "ER Work Shop", lat: 11.234602, lng: 99.537824, labelPos: 'top' },
-      { id: "27", name: "SK#2 ชั้นบน", lat: 11.235266, lng:  99.538055, labelPos: 'top' },
-      { id: "28", name: "ป้อม 105 ข้าง TCS", lat: 11.233820, lng: 99.539134, labelPos: 'top' },
-      { id: "29", name: "ป้อม รปภ. 103-WCE", lat: 11.236017, lng: 99.537023, labelPos: 'top' },
-      { id: "30", name: "Office POP", lat: 11.237150, lng: 99.538815, labelPos: 'top' },
-      { id: "31", name: "กระดาษห่อ Coil PO", lat: 11.236424, lng: 99.538723, labelPos: 'top' },
-      { id: "32", name: "Office CYS ชั้น1 ข้างห้องน้ำชั้น 1", lat: 11.233847, lng: 99.534942, labelPos: 'top' },
-      { id: "33", name: "อินเซ่ไฟฟ้า", lat: 11.232314, lng: 99.532847, labelPos: 'top' },
-      { id: "34", name: "อาคาร Wase Area", lat: 11.232662, lng:  99.532359, labelPos: 'top' },
-      { id: "35", name: "บริเวณจุดพักพนักงาน Cleaning", lat: 11.231295, lng: 99.533010, labelPos: 'top' },
-      { id: "36", name: "พื้นที่รับน้ำมันเตา", lat: 11.230280, lng:  99.532628, labelPos: 'top' },
-      ];
+    const labelOffsetMap = {
+      top:    [0, -10],
+      right:  [20, 10],
+      bottom: [0, 30],
+      left:   [-20, 10]
+    };
+    
+    locations.forEach(loc => {
+      const markerDiv = document.createElement('div');
+      markerDiv.className = 'red-dot-marker';
+      new maplibregl.Marker({ element: markerDiv, anchor: 'center' })
+        .setLngLat([loc.lng, loc.lat])
+        .addTo(map);
       
-      const labelOffsetMap = {
-        top:    [0, -10],
-        right:  [20, 10],
-        bottom: [0, 30],
-        left:   [-20, 10]
-      };
+      const labelDiv = document.createElement('div');
+      labelDiv.className = 'custom-text-label';
+      labelDiv.innerText = loc.id;
       
+      const offset = labelOffsetMap[loc.labelPos] || [0, -20]; 
+      
+      new maplibregl.Marker({ element: labelDiv, anchor: 'bottom', offset: offset })
+        .setLngLat([loc.lng, loc.lat])
+        .setPopup(new maplibregl.Popup({ offset: 25 }).setText(loc.name))
+        .addTo(map);
+    });
+
+    // =======================================================
+    // 3. ฟังก์ชันตารางและ Drag/Resize & Window Controls 
+    // =======================================================
+    
+    const tableContainer = document.getElementById('draggable-table-container');
+    const windowHeader = document.getElementById('window-header');
+    const tableBody = document.querySelector('#data-table tbody');
+    const closeWindowBtn = document.getElementById('close-window-btn');
+    const minimizeBtn = document.getElementById('minimize-btn');
+    const maximizeBtn = document.getElementById('maximize-btn');
+    
+    let isMaximized = false;
+    let isMinimized = false;
+    let previousRect = { x: 0, y: 0, width: 400, height: 450 }; 
+
+    function populateTable() {
+      tableBody.innerHTML = ''; 
       locations.forEach(loc => {
-        const markerDiv = document.createElement('div');
-        markerDiv.className = 'red-dot-marker';
-        new maplibregl.Marker({ element: markerDiv, anchor: 'center' })
-          .setLngLat([loc.lng, loc.lat])
-          .addTo(map);
-      
-        const labelDiv = document.createElement('div');
-        labelDiv.className = 'custom-text-label';
-        labelDiv.innerText = loc.id;
-      
-        const offset = labelOffsetMap[loc.labelPos] || [0, -20]; // กำหนด default เป็น top
-      
-        new maplibregl.Marker({ element: labelDiv, anchor: 'bottom', offset: offset })
-          .setLngLat([loc.lng, loc.lat])
-          .setPopup(new maplibregl.Popup({ offset: 25 }).setText(loc.name))
-          .addTo(map);
+        const row = tableBody.insertRow();
+        const idCell = row.insertCell();
+        const nameCell = row.insertCell();
+        idCell.textContent = loc.id;
+        nameCell.textContent = loc.name;
       });
+    }
+
+    function closeWindow() {
+      tableContainer.style.display = 'none';
+      document.querySelector('.toggle-table-button').classList.remove('active');
+      document.querySelector('.toggle-table-button').title = 'แสดงตารางข้อมูล';
+      tableContainer.classList.remove('minimized', 'maximized');
+      isMaximized = false;
+      isMinimized = false;
+      document.getElementById('maximize-btn').innerHTML = '<i class="far fa-square"></i>';
+      minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>';
+    }
+
+    function minimizeWindow() {
+        if (!isMinimized) {
+            previousRect = { 
+                x: parseFloat(tableContainer.dataset.x) || 0,
+                y: parseFloat(tableContainer.dataset.y) || 0,
+                width: tableContainer.offsetWidth,
+                height: tableContainer.offsetHeight
+            };
+            
+            if (isMaximized) {
+                 tableContainer.classList.remove('maximized');
+                 isMaximized = false;
+                 maximizeBtn.innerHTML = '<i class="far fa-square"></i>';
+                 maximizeBtn.title = 'ขยายเต็มจอ';
+            }
+
+            tableContainer.classList.add('minimized');
+            isMinimized = true;
+            
+            minimizeBtn.innerHTML = '<i class="far fa-window-restore"></i>';
+            minimizeBtn.title = 'คืนค่าหน้าต่าง';
+        } else {
+            tableContainer.classList.remove('minimized');
+            isMinimized = false;
+            
+            Object.assign(tableContainer.style, {
+                width: `${previousRect.width}px`,
+                height: `${previousRect.height}px`,
+                transform: `translate(${previousRect.x}px, ${previousRect.y}px)`,
+                top: '50%', 
+                left: '0' 
+            });
+
+            tableContainer.dataset.x = previousRect.x;
+            tableContainer.dataset.y = previousRect.y;
+
+            minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>';
+            minimizeBtn.title = 'ย่อหน้าต่าง';
+        }
+    }
+
+    function maximizeWindow() {
+        if (!isMaximized) {
+            previousRect = { 
+                x: parseFloat(tableContainer.dataset.x) || 0,
+                y: parseFloat(tableContainer.dataset.y) || 0,
+                width: tableContainer.offsetWidth,
+                height: tableContainer.offsetHeight
+            };
+            
+            if (isMinimized) {
+                tableContainer.classList.remove('minimized');
+                isMinimized = false;
+                minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>';
+                minimizeBtn.title = 'ย่อหน้าต่าง';
+            }
+
+            tableContainer.classList.add('maximized');
+            isMaximized = true;
+            
+            maximizeBtn.innerHTML = '<i class="far fa-window-restore"></i>';
+            maximizeBtn.title = 'คืนค่าขนาด';
+        } else {
+            tableContainer.classList.remove('maximized');
+            isMaximized = false;
+
+            Object.assign(tableContainer.style, {
+                width: `${previousRect.width}px`,
+                height: `${previousRect.height}px`,
+                transform: `translate(${previousRect.x}px, ${previousRect.y}px)`,
+                top: '50%',
+                left: '0'
+            });
+            tableContainer.dataset.x = previousRect.x;
+            tableContainer.dataset.y = previousRect.y;
+
+            maximizeBtn.innerHTML = '<i class="far fa-square"></i>';
+            maximizeBtn.title = 'ขยายเต็มจอ';
+        }
+    }
+
+    // Event Listeners สำหรับปุ่มควบคุม
+    closeWindowBtn.addEventListener('click', closeWindow);
+    minimizeBtn.addEventListener('click', minimizeWindow);
+    maximizeBtn.addEventListener('click', maximizeWindow);
+    
+    // ดับเบิ้ลคลิกที่ header เพื่อ Maximize/Restore หรือ Minimize/Restore
+    windowHeader.addEventListener('dblclick', () => {
+        if (isMinimized) {
+            minimizeWindow();
+        } else {
+            maximizeWindow(); 
+        }
+    });
+    
+    // =======================================================
+    // 4. Interact.js Dragging and Resizing 
+    // =======================================================
+    let x = 0;
+    let y = 0;
+
+    interact(tableContainer)
+    .draggable({
+      allowFrom: '#window-header', 
+      listeners: {
+        start (event) {
+            tableContainer.classList.add('dragging'); 
+            tableContainer.style.zIndex = 100;
+        },
+        move (event) {
+          if (isMinimized) return; 
+
+          // Logic: ลากลงเพื่อ Restore จาก Maximize
+          if (isMaximized) {
+            if (event.dy > 5) { 
+                maximizeWindow(); 
+                
+                x = event.clientX - (previousRect.width / 2); 
+                y = event.clientY - (windowHeader.offsetHeight / 2);
+                
+                event.target.style.transform = `translate(${x}px, ${y}px)`;
+                event.target.dataset.x = x;
+                event.target.dataset.y = y;
+                return; 
+            }
+            return; 
+          } 
+          
+          // Logic: ลากปกติ
+          x += event.dx
+          y += event.dy
+          
+          event.target.style.transform = `translate(${x}px, ${y}px)`;
+          event.target.dataset.x = x;
+          event.target.dataset.y = y;
+        },
+        end (event) {
+            tableContainer.classList.remove('dragging');
+            tableContainer.style.zIndex = 10;
+        }
+      }
+    })
+    .resizable({
+      edges: { left: true, right: true, bottom: true, top: false }, 
+      
+      listeners: {
+        start(event) {
+            if (isMaximized || isMinimized) return;
+            tableContainer.classList.add('resizing'); 
+            tableContainer.style.zIndex = 100; 
+        },
+        move (event) {
+          if (isMaximized || isMinimized) return; 
+
+          let { x, y } = event.target.dataset
+          x = (parseFloat(x) || 0) + event.deltaRect.left
+          y = (parseFloat(y) || 0) + event.deltaRect.top
+
+          Object.assign(event.target.style, {
+            width: `${event.rect.width}px`,
+            height: `${event.rect.height}px`,
+            transform: `translate(${x}px, ${y}px)`
+          })
+          
+          Object.assign(event.target.dataset, { x, y })
+        },
+        end(event) {
+            tableContainer.classList.remove('resizing');
+            tableContainer.style.zIndex = 10;
+        }
+      },
+      modifiers: [
+        interact.modifiers.restrictSize({
+          min: { width: 250, height: 300 }
+        })
+      ]
+    });
+    
+    // ตั้งค่าเริ่มต้นของตำแหน่ง x, y 
+    map.on('load', () => {
+        const rect = tableContainer.getBoundingClientRect();
+        x = rect.left; 
+        y = rect.top - (window.innerHeight - rect.height) / 2; 
+        
+        tableContainer.dataset.x = x;
+        tableContainer.dataset.y = y;
+        
+        tableContainer.style.transform = `translate(${x}px, ${y}px)`;
+
+        // ตั้งค่าปุ่ม Toggle เป็น Active เมื่อโหลดหน้าต่างมา
+        if (tableContainer.style.display !== 'none') {
+             document.querySelector('.toggle-table-button').classList.add('active');
+        }
+    });
   </script>
 </body>
 </html>
