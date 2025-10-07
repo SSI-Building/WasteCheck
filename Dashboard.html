@@ -11,8 +11,8 @@
     .custom-text-label {
       background-color: #fff;
       color: #333;
-      padding: 3px 6px;
-      border-radius: 4px;
+      padding: 0px 6px;
+      border-radius: 5px;
       font-size: 12px;
       font-weight: bold;
       box-shadow: 0 1px 4px rgba(0,0,0,0.3);
@@ -217,35 +217,43 @@
     map.on('moveend', updateDistances);
 
     // =======================================================
-    // 5. เพิ่มหมุดหลายจุด (Marker + Label)
+    // พิ่มหมุดหลายจุด (Marker + Label)
     // =======================================================
-    const locations = [
+      const locations = [
       { id: "1", name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225347, lng: 99.538782 },
       { id: "2", name: "ป้อมข้างห้องน้ำ", lat: 11.225813, lng: 99.538542 },
       { id: "3", name: "ออฟฟิสหน้า SSI", lat: 11.225350, lng: 99.537677 },
       { id: "4", name: "ซุ้มศาลาพักผ่อนทางเดินไป Canteen", lat: 11.225668, lng: 99.537135 },
       { id: "5", name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.226040, lng: 99.537104}
-    ];
-
-    const markerDotSize = 10;
-    const extraGap = 2;
-    const offsetY = -(markerDotSize / 2 + extraGap);
-
-    locations.forEach(loc => {
-      const markerDiv = document.createElement('div');
-      markerDiv.className = 'red-dot-marker';
-      new maplibregl.Marker({ element: markerDiv, anchor: 'center' })
-        .setLngLat([loc.lng, loc.lat])
-        .addTo(map);
-
-      const labelDiv = document.createElement('div');
-      labelDiv.className = 'custom-text-label';
-      labelDiv.innerText = loc.id;
-      new maplibregl.Marker({ element: labelDiv, anchor: 'bottom', offset: [0, offsetY] })
-        .setLngLat([loc.lng, loc.lat])
-        .setPopup(new maplibregl.Popup({ offset: 25 }).setText(loc.name))
-        .addTo(map);
-    });
+      ];
+      
+      const labelOffsets = [
+        [0, -20],   // บน
+        [20, 0],    // ขวา
+        [0, 20],    // ล่าง
+        [-20, 0],   // ซ้าย
+        [0, -20]    // บน
+      ];
+      
+      locations.forEach((loc, index) => {
+        const markerDiv = document.createElement('div');
+        markerDiv.className = 'red-dot-marker';
+        new maplibregl.Marker({ element: markerDiv, anchor: 'center' })
+          .setLngLat([loc.lng, loc.lat])
+          .addTo(map);
+      
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'custom-text-label';
+        labelDiv.innerText = loc.id;
+      
+        // ใช้ offset จาก array ตาม index
+        const offset = labelOffsets[index % labelOffsets.length];
+      
+        new maplibregl.Marker({ element: labelDiv, anchor: 'center', offset: offset })
+          .setLngLat([loc.lng, loc.lat])
+          .setPopup(new maplibregl.Popup({ offset: 25 }).setText(loc.name))
+          .addTo(map);
+      });
   </script>
 </body>
 </html>
