@@ -19,8 +19,8 @@
       font-weight: bold;
       box-shadow: 0 1px 4px rgba(0,0,0,0.3);
       white-space: nowrap;
-      /* ปรับตำแหน่ง: เลื่อนขึ้นให้เหนือจุดศูนย์กลางเล็กน้อย */
-      transform: translate(0, -15px); /* ปรับค่านี้เพื่อเลื่อนขึ้น/ลง */
+      pointer-events: none; /* ไม่รับเหตุการณ์เมาส์ */
+      margin: 0; /* ให้ offset ของ Marker ควบคุมตำแหน่ง */
     }
     
     /* สไตล์สำหรับหมุดจุดสีแดงเดิม */
@@ -31,6 +31,7 @@
       border-radius: 100%;
       border: 1px solid white;
       box-shadow: 0 0 1px rgba(0,0,0,0.5);
+      pointer-events: auto;
     }
 
     /* สไตล์สำหรับกล่องแสดงค่า Bearing (ทิศทางการหมุน) */
@@ -92,7 +93,7 @@
       transform: scale(1.1);
     }
 
-    /* สไตล์สำหรับปรับปรุงปุ่ม Navigation Control ของ MapLibre */
+    /* ปรับปรุงปุ่ม Navigation Control ของ MapLibre */
     .maplibregl-ctrl-group > button {
       border-radius: 4px !important;
       margin: 2px !important;
@@ -126,39 +127,21 @@
   // =======================================================
   // 1. การตั้งค่าแผนที่เบื้องต้น (Initial Setup)
   // =======================================================
-  
-  // 🎯 พิกัดหลักของหมุดและจุดอ้างอิง
   const targetLngLat = [99.535692, 11.231666]; 
-
-  // 📐 ค่าชดเชย (Offset) ที่ต้องการตามหน้าจอที่หมุนแล้ว
   const desiredOffsetSouth = 0.0010;
   const desiredOffsetWest  = 0.0000;
-
-  // ค่าการหมุนเริ่มต้น
   const initialBearing = -45.6;          
   const initialZoom = 15.65;
   const initialPitch = 0;                
 
-  // --- การคำนวณ Offset ตามมุมหมุน (Trigonometry) ---
   const angleRad = (initialBearing * Math.PI) / 180; 
-
-  const offsetX_Lng = (
-      (desiredOffsetWest * Math.cos(angleRad)) + 
-      (desiredOffsetSouth * Math.sin(angleRad))
-  );
-
-  const offsetY_Lat = (
-      (desiredOffsetSouth * Math.cos(angleRad)) - 
-      (desiredOffsetWest * Math.sin(angleRad))
-  );
-
+  const offsetX_Lng = ((desiredOffsetWest * Math.cos(angleRad)) + (desiredOffsetSouth * Math.sin(angleRad)));
+  const offsetY_Lat = ((desiredOffsetSouth * Math.cos(angleRad)) - (desiredOffsetWest * Math.sin(angleRad)));
   const center = [
       targetLngLat[0] - offsetX_Lng, 
       targetLngLat[1] - offsetY_Lat  
   ];
-  // -------------------------------------------------
 
-  // สร้างอ็อบเจกต์แผนที่ (Map Object)
   const map = new maplibregl.Map({
     container: 'map', 
     style: {
@@ -183,21 +166,16 @@
     maxZoom: 17.39
   });
 
-
   // =======================================================
-  // 2. การควบคุม (Controls) และ ข้อมูลพื้นฐาน
+  // 2. Controls
   // =======================================================
-
-  // เพิ่ม Navigation Control
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
 
-  // คลาส Reset Control (ปุ่มที่สร้างเอง)
   class ResetControl {
     onAdd(map) {
       this.map = map;
       this.container = document.createElement('div');
       this.container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
-
       const btn = document.createElement('button');
       btn.className = 'reset-button';
       btn.innerHTML = "⟳";
@@ -210,7 +188,6 @@
           pitch: initialPitch
         });
       };
-
       this.container.appendChild(btn);
       return this.container;
     }
@@ -221,9 +198,8 @@
   }
   map.addControl(new ResetControl(), 'bottom-right');
 
-
   // =======================================================
-  // 3. ข้อมูล Bearing (ทิศทางการหมุน) & Zoom
+  // 3. Bearing & Zoom Info
   // =======================================================
   const bearingInfo = document.getElementById('bearing-info');
   const zoomInfo = document.getElementById('zoom-info');
@@ -241,9 +217,8 @@
   map.on('load', updateBearing); 
   map.on('load', updateZoom); 
 
-
   // =======================================================
-  // 4. ข้อมูล Distance (ระยะห่างไปยังขอบแผนที่)
+  // 4. Distance Info
   // =======================================================
   const distanceInfo = document.getElementById('distance-info');
   const targetPoint = targetLngLat; 
@@ -267,35 +242,44 @@
   map.on('moveend', updateDistances);
   map.on('load', updateDistances); 
 
-
   // =======================================================
-  // 5. Marker และ Text Label (แทน Popup)
+  // 5. Marker + Label (แก้ให้ไม่ซ้อนทับ)
   // =======================================================
   const markerPoint = targetLngLat; 
 
-  // --- 5.1 Marker ตัวที่ 1: จุดสีแดง (หมุดหลัก) ---
+  // --- จุดแดง (marker) ---
   const markerDiv = document.createElement('div');
-  markerDiv.className = 'red-dot-marker'; 
+  markerDiv.className = 'red-dot-marker';
 
-  const marker = new maplibregl.Marker({
+  // วางจุดแดงให้ anchor ที่ 'center' เพื่อให้จุดอยู่ตรงพิกัดกลาง
+  new maplibregl.Marker({
     element: markerDiv,
     anchor: 'center'
   })
   .setLngLat(markerPoint)
   .addTo(map);
 
-  // --- 5.2 Marker ตัวที่ 2: Text Label (ข้อความแทน Popup) ---
+  // --- Label (ข้อความ) ---
   const labelDiv = document.createElement('div');
-  labelDiv.className = 'custom-text-label'; 
-  labelDiv.innerText = "หมุดของฉัน"; 
+  labelDiv.className = 'custom-text-label';
+  labelDiv.innerText = "1";
 
-  const labelMarker = new maplibregl.Marker({
+  // ขนาดของจุด (ตรงกับ CSS .red-dot-marker) เพื่อคำนวณ offset ให้ label ไม่ทับ
+  const markerDotSize = 5; // px (เท่ากับ width/height ของ .red-dot-marker)
+  const extraGap = 6; // px ช่องว่างเพิ่มระหว่างจุดกับ label (ปรับได้)
+  // เราใช้ anchor 'bottom' สำหรับ label (จะวางขอบล่างของ label ที่พิกัด) 
+  // แล้วเลื่อนขึ้นด้วย offset เป็นค่าลบ (พิกเซล)
+  const offsetY = -(markerDotSize / 2 + extraGap); // ตัวอย่าง: -(5 + 6) = -11
+
+  new maplibregl.Marker({
     element: labelDiv,
-    anchor: 'bottom' 
+    anchor: 'bottom',
+    offset: [0, offsetY]
   })
   .setLngLat(markerPoint)
   .addTo(map);
 
+  // ถ้าต้องการปรับระยะห่าง ให้เปลี่ยนค่า extraGap (เพิ่ม = ห่างมากขึ้น)
 </script>
 
 </body>
