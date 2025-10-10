@@ -55,87 +55,95 @@
         /* ----------------------------------------------------- */
         /* สไตล์สำหรับตาราง (Fixed Position, Auto-fit) */
         /* ----------------------------------------------------- */
-        #data-table-container {
-            position: absolute;
-            /* NEW: ชิดมุมบนซ้าย */
-            top: 10px; 
-            left: 10px; 
-            
-            /* NEW: ปรับขนาดตามเนื้อหา */
-            width: auto;
-            height: auto;
-            max-width: 90vw; 
-            max-height: 90vh;
-            
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid #777;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            z-index: 10; 
-            display: none; /* ซ่อนตอนเริ่มต้น */
-            overflow: hidden; 
-            flex-direction: column; 
-        }
+/* กล่องข้อมูลหลัก */
+#data-table-container {
+    position: absolute;
+    top: 10px;
+    left: 10px;
 
-        #window-header {
-            background-color: #333;
-            color: white;
-            padding: 4px 10px;
-            cursor: move; 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: bold;
-            flex-shrink: 0;
-        }
-        
-        #window-header .control-buttons {
-            display: flex;
-        }
+    width: auto;
+    height: auto;
+    max-width: 90vw;
+    max-height: 90vh;
 
-        #window-header .control-buttons button {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            line-height: 1;
-            width: 30px; 
-            height: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            margin: 0 1px; 
-        }
-        #window-header .control-buttons button:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-        #window-header #close-window-btn:hover {
-            background-color: #e74c3c; 
-        }
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #777;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    display: none;
+    overflow: hidden;
+    flex-direction: column;
+}
 
-        #data-table-wrapper {
-            padding: 8px;
-            overflow: visible; /* แทน auto */
-        }
+/* ส่วนหัวของกล่อง (ลากได้) */
+#window-header {
+    background-color: #333;
+    color: white;
+    padding: 4px 10px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    flex-shrink: 0;
+}
 
-        #data-table {
-            border-collapse: collapse;
-            width: 100%; /* ให้ตารางยืดตามความกว้างของ wrapper */
-            font-size: 14px;
-            
-        }
-        #data-table th, #data-table td {
-            border: 1px solid #ddd;
-            padding: 6px 10px;
-            text-align: left;
-        }
-        #data-table th {
-            background-color: #f2f2f2;
-            color: #333;
-            font-weight: bold;
-        }
+/* ปุ่มควบคุม (ย่อ, ขยาย, ปิด) */
+#window-header .control-buttons {
+    display: flex;
+    gap: 2px;
+}
+
+#window-header .control-buttons button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    width: 30px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+#window-header .control-buttons button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+#window-header #close-window-btn:hover {
+    background-color: #e74c3c;
+}
+
+/* ส่วนตารางข้อมูล */
+#data-table-wrapper {
+    padding: 8px;
+    overflow: visible;
+}
+
+#data-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+}
+
+#data-table th,
+#data-table td {
+    border: 1px solid #ddd;
+    padding: 6px 10px;
+    text-align: left;
+}
+
+#data-table th {
+    background-color: #f2f2f2;
+    color: #333;
+    font-weight: bold;
+}
+
     </style>
 </head>
 <body>
