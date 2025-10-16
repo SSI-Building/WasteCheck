@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แบบสอบถามเช็คลิสต์</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f7f7f7;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+    .container {
+        background-color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        width: 90%;
+        max-width: 400px;
+    }
+    h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+    }
+    .checkbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    label {
+        font-size: 16px;
+        color: #555;
+    }
+    input[type="checkbox"] {
+        margin-right: 10px;
+        transform: scale(1.2);
+    }
+    button {
+        width: 100%;
+        padding: 12px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    button:hover {
+        background-color: #0056b3;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>แบบสอบถามเช็คลิสต์</h2>
+    <form id="checklistForm">
+        <div class="checkbox-group">
+            <label><input type="checkbox" name="item" value="รายการ 1"> รายการ 1</label>
+            <label><input type="checkbox" name="item" value="รายการ 2"> รายการ 2</label>
+            <label><input type="checkbox" name="item" value="รายการ 3"> รายการ 3</label>
+        </div>
+        <button type="submit">ส่ง</button>
+    </form>
+</div>
+
+<script>
+document.getElementById('checklistForm').addEventListener('submit', function(e) {
+    e.preventDefault(); // ป้องกันการรีเฟรชหน้า
+    const checkedItems = Array.from(document.querySelectorAll('input[name="item"]:checked'))
+                              .map(cb => cb.value);
+    if(checkedItems.length === 0){
+        alert("กรุณาเลือกอย่างน้อย 1 รายการ");
+        return;
+    }
+    alert("คุณได้เลือก: " + checkedItems.join(", "));
+    // ถ้าต้องการส่งไป server ให้ใช้ fetch/ajax ที่นี่
+});
+</script>
+</body>
+</html>
