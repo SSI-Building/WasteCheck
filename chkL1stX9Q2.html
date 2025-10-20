@@ -4,21 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ระบบเก็บขยะ (จบในจอเดียว)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
 <style>
   /* ------------------------------------------- */
   /* GLOBAL RESET & FONT */
   /* ------------------------------------------- */
   body {
-      font-family: "Noto Sans Thai", "Segoe UI", sans-serif;
+      /* **เปลี่ยนฟอนต์เป็น Sarabun** */
+      font-family: 'Sarabun', sans-serif; 
       background-color: #f3f4f6;
       margin: 0;
-      height: 100vh;
+      height: 100vh; 
       overflow: hidden; 
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: center; 
       align-items: center;
-      padding: 0;
+      padding: 10px 0; 
   }
 
   /* ------------------------------------------- */
@@ -29,7 +33,7 @@
       grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr 1fr;
       
-      height: 95vh; 
+      height: 85vh; 
       width: 100%;
       max-width: 800px;
       padding: 10px;
@@ -42,10 +46,10 @@
   .bin-card {
       display: flex;
       flex-direction: column;
-      /* **ปรับการจัดเรียงให้แน่นขึ้นเพื่อรองรับไอคอนที่ใหญ่ขึ้น** */
       justify-content: space-evenly; 
       align-items: center;
       text-align: center;
+ 
       
       padding: 5px;
       border-radius: 12px;
@@ -61,7 +65,6 @@
   }
 
   .bin-card img {
-      /* **ขยายขนาด Icon เป็น 90px** */
       width: 90px; 
       height: 90px;
       object-fit: contain;
@@ -76,7 +79,7 @@
   }
 
   /* ------------------------------------------- */
-  /* COUNTER STYLES (ไม่เปลี่ยนแปลง) */
+  /* COUNTER STYLES */
   /* ------------------------------------------- */
   .counter {
       display: flex;
@@ -109,13 +112,30 @@
       min-width: 30px;
       display: inline-block;
   }
+  
+  /* ------------------------------------------- */
+  /* DESKTOP/TABLET OVERRIDES (ปรับสำหรับจอใหญ่) */
+  /* ------------------------------------------- */
+  @media (min-width: 768px) {
+      .bin-container {
+          height: 600px; 
+          width: 700px;
+          grid-template-columns: 1fr 1fr;
+          grid-template-rows: 1fr 1fr;
+          gap: 20px;
+      }
+
+      .bin-card p {
+          font-size: 20px; 
+      }
+  }
 </style>
 </head>
 <body>
     <div class="bin-container">
         <div class="bin-card" id="red-bin">
             <img src="" alt="ถังขยะแดง" id="red-bin-img">
-            <p>ถังแดง</p>
+            <p>ขยะอันตราย</p>
             <div class="counter">
                 <button onclick="changeCount('red', -1)">−</button>
                 <span id="count-red">0</span>
@@ -125,7 +145,7 @@
 
         <div class="bin-card" id="green-bin">
             <img src="" alt="ถังขยะเขียว" id="green-bin-img">
-            <p>ถังเขียว</p>
+            <p>ขยะรีไชเคิล</p>
             <div class="counter">
                 <button onclick="changeCount('green', -1)">−</button>
                 <span id="count-green">0</span>
@@ -135,7 +155,7 @@
 
         <div class="bin-card" id="black-bin">
             <img src="" alt="ถังขยะดำ" id="black-bin-img">
-            <p>ถังดำ</p>
+            <p>ขยะทั่วไป</p>
             <div class="counter">
                 <button onclick="changeCount('black', -1)">−</button>
                 <span id="count-black">0</span>
@@ -145,7 +165,7 @@
 
         <div class="bin-card" id="food-bin">
             <img src="" alt="ถังเศษอาหาร" id="food-bin-img">
-            <p>ถังเศษอาหาร</p>
+            <p>เศษอาหาร</p>
             <div class="counter">
                 <button onclick="changeCount('food', -1)">−</button>
                 <span id="count-food">0</span>
