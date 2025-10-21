@@ -281,14 +281,21 @@
         }
 
         // ฟังก์ชันปุ่มส่งข้อมูล
-        function submitData() {
+           function submitData() {
             let message = "ข้อมูลที่บันทึก:\n";
             message += `แดง (อันตราย): ${counts.red}\n`;
             message += `เขียว (รีไซเคิล): ${counts.green}\n`;
             message += `ดำ (ทั่วไป): ${counts.black}\n`;
             message += `เศษอาหาร: ${counts.food}\n`;
-            
+        
             alert(message + '\n(ที่นี่คือจุดที่คุณจะเพิ่มโค้ดส่งข้อมูลจริง)');
+        
+            // ✅ ลองปิดหน้า (จะได้ผลถ้าเปิดจาก window.open() หรือใน LIFF)
+            try {
+                window.close();
+            } catch(e) {
+                console.log("เบราว์เซอร์ไม่อนุญาตให้ปิดหน้านี้โดยตรง");
+            }
         }
         
         // ฟังก์ชันแนบรูป (แจ้งเตือนหลังเลือกรูป)
