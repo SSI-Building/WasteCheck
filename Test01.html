@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ส่งข้อความ + รูปไป LINE</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+
+<h2>ส่งข้อความและรูปไป LINE</h2>
+
+<label>ชื่อ: <input type="text" id="name"></label><br><br>
+<label>ข้อความ: <input type="text" id="msg"></label><br><br>
+<label>URL รูป: <input type="text" id="imgUrl" placeholder="https://..."></label><br><br>
+
+<button onclick="sendToLine()">ส่งไป LINE</button>
+
+<script>
+async function sendToLine() {
+    const name = document.getElementById('name').value;
+    const msg = document.getElementById('msg').value;
+    const imgUrl = document.getElementById('imgUrl').value;
+
+    try {
+        // เริ่ม LIFF
+        await liff.init({ liffId: "2007956727-xavQye3Q" });
+
+        // สร้างข้อความแบบ array
+        const messages = [
+            { type: 'text', text: `ชื่อ: ${name}\nข้อความ: ${msg}` }
+        ];
+
+        // ถ้ามี URL รูป ให้เพิ่มข้อความรูป
+        if(imgUrl) {
+            messages.push({
+                type: 'image',
+                originalContentUrl: imgUrl,
+                previewImageUrl: imgUrl
+            });
+        }
+
+        // ส่งข้อความไป chat ของผู้ใช้
+        await liff.sendMessages(messages);
+
+        alert("ส่งข้อความและรูปไป LINE เรียบร้อยแล้ว!");
+    } catch (err) {
+        console.error(err);
+        alert("เกิดข้อผิดพลาด: " + err);
+    }
+}
+</script>
+
+</body>
+</html>
