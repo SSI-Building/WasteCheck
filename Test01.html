@@ -6,9 +6,10 @@
 <title>ระบบเก็บขยะ + ส่ง LINE</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; text-align:center; }
+body { font-family:'Sarabun',sans-serif; background:#eef2f7; padding:20px; text-align:center; }
+h2 { color:#333; }
 .bin-container { display:grid; grid-template-columns:1fr 1fr; gap:15px; max-width:480px; margin:0 auto; }
-.bin-card { background:#fff; padding:15px; border-radius:16px; box-shadow:0 6px 15px rgba(0,0,0,0.08); cursor:pointer; }
+.bin-card { background:#fff; padding:15px; border-radius:16px; box-shadow:0 6px 15px rgba(0,0,0,0.08); }
 .bin-card p { margin:0; font-weight:700; color:#333; }
 .counter { margin-top:10px; display:flex; justify-content:center; gap:10px; align-items:center; }
 .count-btn { width:40px; height:40px; border:none; border-radius:10px; background:#007bff; color:#fff; font-size:1.2rem; font-weight:700; cursor:pointer; }
@@ -25,7 +26,7 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
 <h2>ระบบเก็บขยะ</h2>
 
 <div class="bin-container">
-    <div class="bin-card" id="red-bin">
+    <div class="bin-card">
         <p>ขยะอันตรายอุตสาหกรรม</p>
         <div class="counter">
             <button class="count-btn" onclick="changeCount('red',-1)">−</button>
@@ -33,7 +34,7 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
             <button class="count-btn" onclick="changeCount('red',1)">+</button>
         </div>
     </div>
-    <div class="bin-card" id="green-bin">
+    <div class="bin-card">
         <p>ขยะรีไซเคิล</p>
         <div class="counter">
             <button class="count-btn" onclick="changeCount('green',-1)">−</button>
@@ -41,7 +42,7 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
             <button class="count-btn" onclick="changeCount('green',1)">+</button>
         </div>
     </div>
-    <div class="bin-card" id="black-bin">
+    <div class="bin-card">
         <p>ขยะทั่วไป</p>
         <div class="counter">
             <button class="count-btn" onclick="changeCount('black',-1)">−</button>
@@ -49,7 +50,7 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
             <button class="count-btn" onclick="changeCount('black',1)">+</button>
         </div>
     </div>
-    <div class="bin-card" id="food-bin">
+    <div class="bin-card">
         <p>ถังเศษอาหาร</p>
         <div class="counter">
             <button class="count-btn" onclick="changeCount('food',-1)">−</button>
@@ -70,60 +71,60 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
 let counts = {red:0,green:0,black:0,food:0};
 let selectedFile = null;
 
-// ใส่ Cloudinary info ของคุณ
-const CLOUD_NAME = "mywasteapp";       // จาก Dashboard
-const UPLOAD_PRESET = "waste_upload";  // จาก Upload Preset ที่สร้าง
+// รอโหลด LIFF SDK และ init
+window.addEventListener('load', () => {
+    liff.init({ liffId: "2007956727-xavQye3Q" })
+        .then(() => console.log("LIFF Initialized"))
+        .catch(err => console.error("LIFF init error:", err));
+});
 
-// LIFF init
-liff.init({ liffId: "2007956727-xavQye3Q" }).then(() => {
-    console.log("LIFF Initialized");
-}).catch(err => console.error(err));
-
-// นับจำนวน
+// ฟังก์ชันนับ
 function changeCount(color, delta) {
     counts[color] = Math.max(0, counts[color]+delta);
     document.getElementById(`count-${color}`).innerText = counts[color];
 }
 
-// เลือกรูป
+// ฟังก์ชันเลือกไฟล์
 document.getElementById('camera-input').addEventListener('change', e => {
     if(e.target.files.length>0) selectedFile = e.target.files[0];
 });
 
-// ส่ง LINE
+// ฟังก์ชันส่ง LINE
 async function sendLine() {
-    const messageText = `ข้อมูลขยะ:\nแดง: ${counts.red}\nเขียว: ${counts.green}\nดำ: ${counts.black}\nเศษอาหาร: ${counts.food}`;
-    let messages = [{ type: 'text', text: messageText }];
-
-    if(selectedFile) {
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        formData.append("upload_preset", UPLOAD_PRESET);
-
-        try {
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, {
-                method: "POST",
-                body: formData
-            });
-            const data = await res.json();
-            if(data.secure_url) {
-                messages.push({
-                    type:'text',
-                    text:`รูปภาพ: ${data.secure_url}`
-                });
-            }
-        } catch(err) {
-            alert("อัปโหลดรูปไม่สำเร็จ: "+err);
-            return;
-        }
+    if(!liff.isInClient()) {
+        alert("โปรดเปิดใน LINE App เท่านั้น");
+        return;
     }
 
-    // ส่งข้อความ + URL รูปไป LINE
-    try {
-        await liff.sendMessages(messages);
-        alert("ส่งข้อมูลไป LINE เรียบร้อยแล้ว");
-    } catch(err) {
-        alert("เกิดข้อผิดพลาด: "+err);
+    const messageText = `ข้อมูลขยะ:\nแดง: ${counts.red}\nเขียว: ${counts.green}\nดำ: ${counts.black}\nเศษอาหาร: ${counts.food}`;
+    let messages = [{type:'text', text: messageText}];
+
+    // ถ้ามีไฟล์แนบ
+    if(selectedFile) {
+        const reader = new FileReader();
+        reader.onload = async function() {
+            const imgBase64 = reader.result;
+            messages.push({
+                type:'image',
+                originalContentUrl: imgBase64,
+                previewImageUrl: imgBase64
+            });
+
+            try {
+                await liff.sendMessages(messages);
+                alert("ส่งเรียบร้อยแล้ว!");
+            } catch(err) {
+                alert("เกิดข้อผิดพลาด: " + err);
+            }
+        };
+        reader.readAsDataURL(selectedFile);
+    } else {
+        try {
+            await liff.sendMessages(messages);
+            alert("ส่งเรียบร้อยแล้ว!");
+        } catch(err) {
+            alert("เกิดข้อผิดพลาด: " + err);
+        }
     }
 }
 </script>
