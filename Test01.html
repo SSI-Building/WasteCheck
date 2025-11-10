@@ -33,7 +33,6 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
             <button class="count-btn" onclick="changeCount('red',1)">+</button>
         </div>
     </div>
-
     <div class="bin-card" id="green-bin">
         <p>ขยะรีไซเคิล</p>
         <div class="counter">
@@ -42,7 +41,6 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
             <button class="count-btn" onclick="changeCount('green',1)">+</button>
         </div>
     </div>
-
     <div class="bin-card" id="black-bin">
         <p>ขยะทั่วไป</p>
         <div class="counter">
@@ -51,7 +49,6 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
             <button class="count-btn" onclick="changeCount('black',1)">+</button>
         </div>
     </div>
-
     <div class="bin-card" id="food-bin">
         <p>ถังเศษอาหาร</p>
         <div class="counter">
@@ -91,37 +88,43 @@ document.getElementById('camera-input').addEventListener('change', e => {
 
 // ส่ง LINE
 async function sendLine() {
-    // สร้างข้อความ
     const messageText = `ข้อมูลขยะ:\nแดง: ${counts.red}\nเขียว: ${counts.green}\nดำ: ${counts.black}\nเศษอาหาร: ${counts.food}`;
-
     let messages = [{ type: 'text', text: messageText }];
 
-    // ถ้ามีรูปแนบ แปลงเป็น Base64
     if(selectedFile) {
-        const reader = new FileReader();
-        reader.onload = async function() {
-            const imgBase64 = reader.result.split(',')[1];
-            messages.push({
-                type:'image',
-                originalContentUrl: reader.result, // ใช้ Base64
-                previewImageUrl: reader.result
-            });
+        // อัปโหลดไฟล์ไป file.io (หมดอายุ 30 วัน)
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("expires", "30d"); // หมดอายุ 30 วัน
 
-            try {
+        try {
+            const res = await fetch("https://file.io", {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+            if(data.success) {
+                const imageUrl = data.link; // URL ของรูป
+                messages.push({
+                    type:'text',
+                    text:`รูปภาพ: ${imageUrl}`
+                });
+
                 await liff.sendMessages(messages);
-                alert('ส่งข้อมูลไป LINE เรียบร้อยแล้ว');
-            } catch(err) {
-                alert('เกิดข้อผิดพลาด: '+err);
+                alert("ส่งข้อมูลไป LINE เรียบร้อยแล้ว\nรูปจะหมดอายุภายใน 30 วัน");
+            } else {
+                alert("อัปโหลดรูปไม่สำเร็จ");
             }
-        };
-        reader.readAsDataURL(selectedFile);
+        } catch(err) {
+            alert("เกิดข้อผิดพลาด: "+err);
+        }
     } else {
-        // ส่งเฉพาะข้อความ
+        // ส่งข้อความอย่างเดียว
         try {
             await liff.sendMessages(messages);
-            alert('ส่งข้อมูลไป LINE เรียบร้อยแล้ว');
+            alert("ส่งข้อมูลไป LINE เรียบร้อยแล้ว");
         } catch(err) {
-            alert('เกิดข้อผิดพลาด: '+err);
+            alert("เกิดข้อผิดพลาด: "+err);
         }
     }
 }
