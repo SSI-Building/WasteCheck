@@ -70,6 +70,10 @@ body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; tex
 let counts = {red:0,green:0,black:0,food:0};
 let selectedFile = null;
 
+// ใส่ Cloudinary info ของคุณ
+const CLOUD_NAME = "mywasteapp";       // จาก Dashboard
+const UPLOAD_PRESET = "waste_upload";  // จาก Upload Preset ที่สร้าง
+
 // LIFF init
 liff.init({ liffId: "2007956727-xavQye3Q" }).then(() => {
     console.log("LIFF Initialized");
@@ -92,40 +96,34 @@ async function sendLine() {
     let messages = [{ type: 'text', text: messageText }];
 
     if(selectedFile) {
-        // อัปโหลดไฟล์ไป file.io (หมดอายุ 30 วัน)
         const formData = new FormData();
         formData.append("file", selectedFile);
-        formData.append("expires", "30d"); // หมดอายุ 30 วัน
+        formData.append("upload_preset", UPLOAD_PRESET);
 
         try {
-            const res = await fetch("https://file.io", {
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, {
                 method: "POST",
                 body: formData
             });
             const data = await res.json();
-            if(data.success) {
-                const imageUrl = data.link; // URL ของรูป
+            if(data.secure_url) {
                 messages.push({
                     type:'text',
-                    text:`รูปภาพ: ${imageUrl}`
+                    text:`รูปภาพ: ${data.secure_url}`
                 });
-
-                await liff.sendMessages(messages);
-                alert("ส่งข้อมูลไป LINE เรียบร้อยแล้ว\nรูปจะหมดอายุภายใน 30 วัน");
-            } else {
-                alert("อัปโหลดรูปไม่สำเร็จ");
             }
         } catch(err) {
-            alert("เกิดข้อผิดพลาด: "+err);
+            alert("อัปโหลดรูปไม่สำเร็จ: "+err);
+            return;
         }
-    } else {
-        // ส่งข้อความอย่างเดียว
-        try {
-            await liff.sendMessages(messages);
-            alert("ส่งข้อมูลไป LINE เรียบร้อยแล้ว");
-        } catch(err) {
-            alert("เกิดข้อผิดพลาด: "+err);
-        }
+    }
+
+    // ส่งข้อความ + URL รูปไป LINE
+    try {
+        await liff.sendMessages(messages);
+        alert("ส่งข้อมูลไป LINE เรียบร้อยแล้ว");
+    } catch(err) {
+        alert("เกิดข้อผิดพลาด: "+err);
     }
 }
 </script>
