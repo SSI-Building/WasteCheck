@@ -3,73 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ส่งข้อความไป LINE</title>
+<title>ระบบเก็บขยะ + ส่ง LINE</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-  body {
-    font-family: 'Prompt', sans-serif;
-    padding: 20px;
-    background-color: #f0f2f5;
-    color: #333;
-  }
-  h2 {
-    color: #1994b6;
-  }
-  input, textarea, button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 10px;
-    font-size: 16px;
-  }
-  button {
-    background-color: #36a761;
-    color: white;
-    border: none;
-    cursor: pointer;
-  }
-  button:hover {
-    opacity: 0.9;
-  }
+body { font-family: 'Sarabun', sans-serif; background:#eef2f7; padding:20px; text-align:center; }
+.bin-container { display:grid; grid-template-columns:1fr 1fr; gap:15px; max-width:480px; margin:0 auto; }
+.bin-card { background:#fff; padding:15px; border-radius:16px; box-shadow:0 6px 15px rgba(0,0,0,0.08); cursor:pointer; }
+.bin-card p { margin:0; font-weight:700; color:#333; }
+.counter { margin-top:10px; display:flex; justify-content:center; gap:10px; align-items:center; }
+.count-btn { width:40px; height:40px; border:none; border-radius:10px; background:#007bff; color:#fff; font-size:1.2rem; font-weight:700; cursor:pointer; }
+.count-btn:hover { background:#0056b3; }
+.count { font-weight:700; font-size:1.3rem; min-width:30px; text-align:center; }
+.action-footer { margin-top:20px; display:flex; justify-content:space-between; max-width:480px; margin:20px auto 0; gap:10px; }
+.btn { flex:1; padding:12px; border-radius:12px; color:#fff; border:none; font-weight:600; cursor:pointer; }
+.camera-btn { background:linear-gradient(45deg,#007bff,#0056b3); }
+.send-btn { background:linear-gradient(45deg,#28a745,#1e7e34); }
 </style>
 </head>
 <body>
 
-<h2>ส่งข้อความไป LINE</h2>
+<h2>ระบบเก็บขยะ</h2>
 
-<label>ชื่อ:</label>
-<input type="text" id="name" placeholder="กรอกชื่อของคุณ">
+<div class="bin-container">
+    <div class="bin-card" id="red-bin">
+        <p>ขยะอันตรายอุตสาหกรรม</p>
+        <div class="counter">
+            <button class="count-btn" onclick="changeCount('red',-1)">−</button>
+            <span id="count-red" class="count">0</span>
+            <button class="count-btn" onclick="changeCount('red',1)">+</button>
+        </div>
+    </div>
 
-<label>ข้อความ:</label>
-<textarea id="msg" placeholder="กรอกข้อความของคุณ" rows="4"></textarea>
+    <div class="bin-card" id="green-bin">
+        <p>ขยะรีไซเคิล</p>
+        <div class="counter">
+            <button class="count-btn" onclick="changeCount('green',-1)">−</button>
+            <span id="count-green" class="count">0</span>
+            <button class="count-btn" onclick="changeCount('green',1)">+</button>
+        </div>
+    </div>
 
-<button onclick="sendToLine()">ส่งข้อความไป LINE</button>
+    <div class="bin-card" id="black-bin">
+        <p>ขยะทั่วไป</p>
+        <div class="counter">
+            <button class="count-btn" onclick="changeCount('black',-1)">−</button>
+            <span id="count-black" class="count">0</span>
+            <button class="count-btn" onclick="changeCount('black',1)">+</button>
+        </div>
+    </div>
+
+    <div class="bin-card" id="food-bin">
+        <p>ถังเศษอาหาร</p>
+        <div class="counter">
+            <button class="count-btn" onclick="changeCount('food',-1)">−</button>
+            <span id="count-food" class="count">0</span>
+            <button class="count-btn" onclick="changeCount('food',1)">+</button>
+        </div>
+    </div>
+</div>
+
+<div class="action-footer">
+    <label class="btn camera-btn">
+        เลือกรูป<input type="file" id="camera-input" accept="image/*" hidden>
+    </label>
+    <button class="btn send-btn" onclick="sendLine()">ส่งไป LINE</button>
+</div>
 
 <script>
-async function sendToLine() {
-    const name = document.getElementById('name').value.trim();
-    const msg = document.getElementById('msg').value.trim();
+let counts = {red:0,green:0,black:0,food:0};
+let selectedFile = null;
 
-    if(!name || !msg) {
-        alert("กรุณากรอกชื่อและข้อความก่อน");
-        return;
-    }
+// LIFF init
+liff.init({ liffId: "2007956727-xavQye3Q" }).then(() => {
+    console.log("LIFF Initialized");
+}).catch(err => console.error(err));
 
-    try {
-        // เริ่ม LIFF
-        await liff.init({ liffId: "2007956727-xavQye3Q" }); // <-- แทนด้วย LIFF ID ของคุณ
+// นับจำนวน
+function changeCount(color, delta) {
+    counts[color] = Math.max(0, counts[color]+delta);
+    document.getElementById(`count-${color}`).innerText = counts[color];
+}
 
-        // ส่งข้อความไป LINE chat ของผู้ใช้
-        await liff.sendMessages([
-            { type: 'text', text: `ชื่อ: ${name}\nข้อความ: ${msg}` }
-        ]);
+// เลือกรูป
+document.getElementById('camera-input').addEventListener('change', e => {
+    if(e.target.files.length>0) selectedFile = e.target.files[0];
+});
 
-        alert("ข้อความถูกส่งไป LINE chat ของคุณแล้ว! \nคุณสามารถแชร์ต่อไปยังกลุ่มได้จาก chat ของคุณ");
-    } catch (err) {
-        console.error(err);
-        alert("เกิดข้อผิดพลาด: " + err);
+// ส่ง LINE
+async function sendLine() {
+    // สร้างข้อความ
+    const messageText = `ข้อมูลขยะ:\nแดง: ${counts.red}\nเขียว: ${counts.green}\nดำ: ${counts.black}\nเศษอาหาร: ${counts.food}`;
+
+    let messages = [{ type: 'text', text: messageText }];
+
+    // ถ้ามีรูปแนบ แปลงเป็น Base64
+    if(selectedFile) {
+        const reader = new FileReader();
+        reader.onload = async function() {
+            const imgBase64 = reader.result.split(',')[1];
+            messages.push({
+                type:'image',
+                originalContentUrl: reader.result, // ใช้ Base64
+                previewImageUrl: reader.result
+            });
+
+            try {
+                await liff.sendMessages(messages);
+                alert('ส่งข้อมูลไป LINE เรียบร้อยแล้ว');
+            } catch(err) {
+                alert('เกิดข้อผิดพลาด: '+err);
+            }
+        };
+        reader.readAsDataURL(selectedFile);
+    } else {
+        // ส่งเฉพาะข้อความ
+        try {
+            await liff.sendMessages(messages);
+            alert('ส่งข้อมูลไป LINE เรียบร้อยแล้ว');
+        } catch(err) {
+            alert('เกิดข้อผิดพลาด: '+err);
+        }
     }
 }
 </script>
-
 </body>
 </html>
