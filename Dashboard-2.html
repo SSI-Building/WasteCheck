@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Map-WasteCheck</title>
+    <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+
+        .custom-text-label {
+            background-color: #fff; color: #333; padding: 0px 6px; border-radius: 5px; font-size: 12px; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.3); white-space: nowrap; pointer-events: none; margin: 0;
+        }
+        .red-dot-marker {
+            width: 10px; height: 10px; background-color: #FF0000; border-radius: 100%; border: 1px solid white; box-shadow: 0 0 1px rgba(0,0,0,0.5); pointer-events: auto;
+        }
+
+        #data-table-container {
+            position: absolute;
+            top: 5px; left: 5px;
+            width: auto; max-width: 90vw;
+            height: auto; max-height: 120vh;
+            background: rgba(255,255,255,0.95);
+            border: 1px solid #777;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+        }
+
+        #window-header {
+            background-color: #333; color: white; padding: 2px 5px; cursor: move;
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: bold; flex-shrink: 0; line-height: 0.8; font-size: 11px;
+        }
+
+        #window-header .control-buttons {
+            display: flex; gap: 2px;
+        }
+        #window-header .control-buttons button {
+            background: none; border: none; color: white; font-size: 11px; cursor: pointer; line-height: 1;
+            width: 30px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 3px; transition: background-color 0.2s;
+        }
+        #window-header .control-buttons button:hover { background-color: rgba(255,255,255,0.2); }
+        #window-header #close-window-btn:hover { background-color: #e74c3c; }
+
+        #data-table-wrapper { padding: 5px; overflow: visible; }
+        #data-table { border-collapse: collapse; width: 100%; font-size: 11px; }
+        #data-table th, #data-table td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; line-height: 0.9; }
+        #data-table th { background-color: #f2f2f2; color: #333; font-weight: bold; }
+
+        .maplibregl-ctrl-group > button,
+        .maplibregl-ctrl-group > .reset-button,
+        .maplibregl-ctrl-group > .toggle-table-button {
+            width: 28px; height: 28px; margin: 2px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 4px rgba(0,0,0,0.15); cursor: pointer; padding: 0;
+        }
+        .maplibregl-ctrl-group > button:hover,
+        .maplibregl-ctrl-group > .reset-button:hover,
+        .maplibregl-ctrl-group > .toggle-table-button:hover {
+            background: #f0f0f0; transform: scale(1.04);
+        }
+        .toggle-table-button.active {
+            background-color: #333 !important; color: white;
+        }
+        .toggle-table-button.active:hover {
+            background-color: #555 !important; color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div id="data-table-container">
+        <div id="window-header">
+            <span>ตารางข้อมูลพื้นที่</span>
+            <div class="control-buttons">
+                <button id="close-window-btn" title="ปิดตาราง"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div id="data-table-wrapper">
+            <table id="data-table">
+                <thead>
+                    <tr><th>ID</th><th>ชื่อพื้นที่</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script>
+        const sheetUrl = "https://script.google.com/macros/s/AKfycbzdYdBwnBhdixvyp4sjTwcSjSGUUM0TCXCVmABjt58A--TUOplaeXztj5yCp0Kt_6shAw/exec";
+
+        const targetLngLat = [99.535692, 11.231666];
+        const initialZoom = 15.65;
+        const initialBearing = -45.6;
+        const initialPitch = 0;
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    satellite: {
+                        type: 'raster',
+                        tiles: [
+                            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                        ],
+                        tileSize: 256
+                    }
+                },
+                layers: [{ id: 'satellite', type: 'raster', source: 'satellite' }]
+            },
+            center: targetLngLat,
+            zoom: initialZoom,
+            bearing: initialBearing,
+            pitch: initialPitch
+        });
+
+        class ResetControl {
+            onAdd(mapInstance) {
+                this.map = mapInstance;
+                this.container = document.createElement('div');
+                this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+                const btn = document.createElement('button');
+                btn.className = 'reset-button';
+                btn.title = 'รีเซ็ตมุมมองแผนที่';
+                btn.innerHTML = '<span>⟳</span>';
+                btn.addEventListener('click', () => {
+                    this.map.easeTo({ center: targetLngLat, zoom: initialZoom, bearing: initialBearing, pitch: initialPitch, duration: 800 });
+                });
+                this.container.appendChild(btn);
+                return this.container;
+            }
+            onRemove() {}
+        }
+
+        class ToggleTableControl {
+            onAdd(mapInstance) {
+                this.map = mapInstance;
+                this.container = document.createElement('div');
+                this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+                this.btn = document.createElement('button');
+                this.btn.className = 'toggle-table-button';
+                this.btn.title = 'แสดง/ซ่อนตารางข้อมูล';
+                this.btn.innerHTML = '<i class="fas fa-table"></i>';
+                this.btn.addEventListener('click', () => {
+                    const container = document.getElementById('data-table-container');
+                    if (container.style.display === 'none' || container.style.display === '') {
+                        container.style.display = 'flex';
+                        this.btn.classList.add('active');
+                    } else {
+                        container.style.display = 'none';
+                        this.btn.classList.remove('active');
+                    }
+                });
+                this.container.appendChild(this.btn);
+                return this.container;
+            }
+            onRemove() {}
+        }
+
+        map.on('load', async () => {
+            map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+            map.addControl(new ResetControl(), 'bottom-right');
+            map.addControl(new ToggleTableControl(), 'bottom-right');
+
+            const locations = await fetchLocations();
+            addMarkers(locations);
+            populateTable(locations);
+        });
+
+        async function fetchLocations(){
+            const res = await fetch(sheetUrl);
+            const data = await res.json();
+            return data.map((loc, idx)=>({
+                id: loc.id || idx+1,
+                name: loc.name || "ไม่ระบุ",
+                lat: parseFloat(loc.lat) || 0,
+                lng: parseFloat(loc.lng) || 0,
+                labelPos: loc.labelPos || "top"
+            }));
+        }
+
+        function addMarkers(locations){
+            const labelOffsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
+            locations.forEach(loc=>{
+                const markerDiv = document.createElement('div');
+                markerDiv.className = 'red-dot-marker';
+                new maplibregl.Marker({ element: markerDiv, anchor: 'center' })
+                    .setLngLat([loc.lng, loc.lat])
+                    .addTo(map);
+
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'custom-text-label';
+                labelDiv.innerText = loc.id;
+
+                const offset = labelOffsetMap[loc.labelPos] || [0,-20];
+                new maplibregl.Marker({ element: labelDiv, anchor: 'bottom', offset: offset })
+                    .setLngLat([loc.lng, loc.lat])
+                    .setPopup(new maplibregl.Popup({ offset: 25 }).setText(loc.name))
+                    .addTo(map);
+            });
+        }
+
+        const tableBody = document.querySelector('#data-table tbody');
+        function populateTable(locations){
+            tableBody.innerHTML = '';
+            locations.forEach(loc=>{
+                const row = tableBody.insertRow();
+                const idCell = row.insertCell();
+                const nameCell = row.insertCell();
+                idCell.textContent = loc.id;
+                nameCell.textContent = loc.name;
+            });
+        }
+
+        const closeWindowBtn = document.getElementById('close-window-btn');
+        const tableContainer = document.getElementById('data-table-container');
+        closeWindowBtn.addEventListener('click', () => {
+            tableContainer.style.display = 'none';
+            document.querySelector('.toggle-table-button').classList.remove('active');
+        });
+
+        // Drag table
+        const header = document.getElementById('window-header');
+        let isDragging = false, offsetX, offsetY;
+        header.addEventListener('mousedown', e => { isDragging = true; const rect = tableContainer.getBoundingClientRect(); offsetX = e.clientX - rect.left; offsetY = e.clientY - rect.top; });
+        document.addEventListener('mousemove', e => { if(isDragging){ tableContainer.style.left = (e.clientX-offsetX)+'px'; tableContainer.style.top = (e.clientY-offsetY)+'px'; }});
+        document.addEventListener('mouseup', ()=>{ isDragging=false; });
+    </script>
+</body>
+</html>
