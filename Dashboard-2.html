@@ -95,8 +95,10 @@
         const sheetUrl = "https://script.google.com/macros/s/AKfycbzdYdBwnBhdixvyp4sjTwcSjSGUUM0TCXCVmABjt58A--TUOplaeXztj5yCp0Kt_6shAw/exec";
 
         const targetLngLat = [99.535692, 11.231666];
-        const initialZoom = 15.65;
+        const desiredOffsetSouth = 0.0010;
+        const desiredOffsetWest  = 0.0000;
         const initialBearing = -45.6;
+        const initialZoom = 15.65;
         const initialPitch = 0;
 
         const map = new maplibregl.Map({
