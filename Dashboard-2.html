@@ -97,6 +97,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <script>
         const targetLngLat = [99.535692, 11.231666];
+        const desiredOffsetSouth = 0.0010;
+        const desiredOffsetWest  = 0.0000;
         const initialBearing = -45.6;
         const initialZoom = 15.65;
         const initialPitch = 0;
@@ -104,7 +106,7 @@
         const map = new maplibregl.Map({
             container: 'map',
             style: { version: 8, sources: { satellite: { type:'raster', tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize:256 } }, layers:[{id:'satellite', type:'raster', source:'satellite'}] },
-            center: targetLngLat,
+            center: [targetLngLat[0] - desiredOffsetWest, targetLngLat[1] - desiredOffsetSouth],
             zoom: initialZoom,
             bearing: initialBearing,
             pitch: initialPitch,
