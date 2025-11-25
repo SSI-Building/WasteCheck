@@ -109,12 +109,19 @@ body { margin:0; padding:0; }
           <option value="bottom">Bottom</option>
           <option value="left">Left</option>
       </select>
-      <div style="display:flex; justify-content:space-between;">
-          <button type="submit" class="save-btn">บันทึก</button>
-          <button type="button" class="cancel-btn" id="close-add-location-btn">ยกเลิก</button>
-      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:5px;">
+        <button type="button" class="review-btn" id="preview-btn" style="background-color:#3498db;color:white;border:none;padding:5px 8px;border-radius:4px;">
+            <i class="fas fa-eye"></i> รีวิว
+        </button>
+        <button type="button" id="clear-preview-btn" style="background-color:#e74c3c;color:white;border:none;padding:5px 8px;border-radius:4px;">
+            <i class="fas fa-trash"></i>
+        </button>
+        <button type="submit" class="save-btn">บันทึก</button>
+        <button type="button" class="cancel-btn" id="close-add-location-btn">ยกเลิก</button>
+    </div>
   </form>
 </div>
+
 
 <!-- Delete Location -->
 <div id="delete-location-form-container">
@@ -286,6 +293,67 @@ document.getElementById('delete-location-btn').onclick=function(){
 
 // Close delete
 document.getElementById('close-delete-location-btn').onclick = ()=>{deleteContainer.style.display='none';}
+
+let previewMarker = null;
+
+// รีวิว
+document.getElementById('preview-btn').onclick = function() {
+    const lat = parseFloat(document.getElementById('new-lat').value);
+    const lng = parseFloat(document.getElementById('new-lng').value);
+    const labelPos = document.getElementById('new-label-pos').value;
+
+    // ลบ preview เก่า
+    if(previewMarker) { previewMarker.forEach(m => m.remove()); }
+    previewMarker = [];
+
+    // หา id ใหม่จาก items ล่าสุด
+    const newId = locations.length > 0 ? Math.max(...locations.map(l => l.id)) + 1 : 1;
+
+    // สร้าง Marker ตัวอย่าง
+    const markerDiv = document.createElement('div'); markerDiv.className='red-dot-marker';
+    const marker = new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([lng,lat]).addTo(map);
+    previewMarker.push(marker);
+
+    // Label ตัวอย่าง = id (ไม่เอาชื่อผู้ใช้)
+    const labelDiv = document.createElement('div'); labelDiv.className='custom-text-label'; labelDiv.innerText = newId;
+    const offsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
+    const offset = offsetMap[labelPos.toLowerCase()] || offsetMap.top;
+    const labelMarker = new maplibregl.Marker({element: labelDiv, anchor:'bottom', offset: offset}).setLngLat([lng,lat]).addTo(map);
+    previewMarker.push(labelMarker);
+
+    map.flyTo({center:[lng,lat], zoom:17});
+};
+
+// เคลียร์ preview
+document.getElementById('clear-preview-btn').onclick = function() {
+    if(previewMarker) {
+        previewMarker.forEach(m => m.remove());
+        previewMarker = null;
+    }
+};
+
+// บันทึก
+document.getElementById('add-location-form').onsubmit = function(e) {
+    e.preventDefault();
+    const lat = parseFloat(document.getElementById('new-lat').value);
+    const lng = parseFloat(document.getElementById('new-lng').value);
+    const labelPos = document.getElementById('new-label-pos').value;
+
+    const newId = locations.length > 0 ? Math.max(...locations.map(l => l.id)) + 1 : 1;
+
+    // เพิ่มจริง
+    locations.push({id:newId, name:document.getElementById('new-name').value, lat:lat, lng:lng, labelPos:labelPos});
+    populateTable();
+    addMarkers();
+
+    // ลบ preview
+    if(previewMarker) { previewMarker.forEach(m => m.remove()); previewMarker = null; }
+
+    document.getElementById('add-location-form-container').style.display = 'none';
+    document.getElementById('add-location-form').reset();
+};
+
+
 
 </script>
 </body>
