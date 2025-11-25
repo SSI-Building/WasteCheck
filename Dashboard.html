@@ -377,6 +377,36 @@ document.getElementById('close-add-location-btn').onclick = () => {
     document.getElementById('add-location-form-container').style.display='none';
 }
 
+const addLocationForm = document.getElementById('add-location-form-container');
+const formHeader = addLocationForm.querySelector('h3'); // หรือสร้าง div header ถ้าต้องการ
+
+formHeader.style.cursor = 'move'; // แสดงว่า draggable
+
+formHeader.onmousedown = dragFormMouseDown;
+
+function dragFormMouseDown(e) {
+    e.preventDefault();
+    let pos3 = e.clientX, pos4 = e.clientY;
+
+    document.onmouseup = closeDragFormElement;
+    document.onmousemove = elementDragForm;
+
+    function elementDragForm(e) {
+        e.preventDefault();
+        let pos1 = pos3 - e.clientX;
+        let pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        addLocationForm.style.top = (addLocationForm.offsetTop - pos2) + "px";
+        addLocationForm.style.left = (addLocationForm.offsetLeft - pos1) + "px";
+    }
+
+    function closeDragFormElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+}
+
 
     
     </script>
