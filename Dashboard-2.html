@@ -126,7 +126,16 @@
                 btn.type = 'button';
                 btn.title = 'รีเซ็ตมุมมองแผนที่';
                 btn.innerHTML = '<span>⟳</span>';
-                btn.addEventListener('click', (e) => { e.stopPropagation(); this.map.easeTo({ center: targetLngLat, zoom: initialZoom, bearing: initialBearing, pitch: initialPitch, duration: 800 }); });
+                btn.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                this.map.easeTo({ 
+                    center: [targetLngLat[0] - desiredOffsetWest, targetLngLat[1] - desiredOffsetSouth], 
+                    zoom: initialZoom, 
+                    bearing: initialBearing, 
+                    pitch: initialPitch, 
+                    duration: 800 
+                      }); 
+                  });
                 this.container.appendChild(btn);
                 return this.container;
             }
