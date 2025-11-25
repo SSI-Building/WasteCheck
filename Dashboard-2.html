@@ -230,19 +230,43 @@
             });
         }
 
-        function addMarkers(){
-            locations.forEach(loc=>{
-                const markerDiv = document.createElement('div');
-                markerDiv.className='red-dot-marker';
-                new maplibregl.Marker({element:markerDiv, anchor:'center'}).setLngLat([loc.lng,loc.lat]).addTo(map);
+// ----------------------------
+// Label Offset Map
+// ----------------------------
+const labelOffsetMap = {
+    top:    [0, -10],
+    right:  [20, 10],
+    bottom: [0, 30],
+    left:   [-20, 10]
+};
 
-                const labelDiv = document.createElement('div');
-                labelDiv.className='custom-text-label';
-                labelDiv.innerText=loc.id;
-                new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:[0,-20]}).setLngLat([loc.lng,loc.lat])
-                .setPopup(new maplibregl.Popup({offset:25}).setText(loc.name)).addTo(map);
-            });
-        }
+// ----------------------------
+// Add Markers with Labels
+// ----------------------------
+function addMarkers(){
+    locations.forEach(loc=>{
+        // Marker
+        const markerDiv = document.createElement('div');
+        markerDiv.className='red-dot-marker';
+        new maplibregl.Marker({element:markerDiv, anchor:'center'})
+            .setLngLat([loc.lng, loc.lat])
+            .addTo(map);
+
+        // Label
+        const labelDiv = document.createElement('div');
+        labelDiv.className='custom-text-label';
+        labelDiv.innerText = loc.id;
+
+        // ใช้ labelPos จาก Sheet, default เป็น 'top' ถ้าไม่มีหรือผิด
+        const position = loc.labelPos?.toLowerCase();
+        const offset = labelOffsetMap[position] || labelOffsetMap.top;
+
+        new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset: offset})
+            .setLngLat([loc.lng, loc.lat])
+            .setPopup(new maplibregl.Popup({offset:25}).setText(loc.name))
+            .addTo(map);
+    });
+}
 
     </script>
 </body>
