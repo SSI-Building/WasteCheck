@@ -149,7 +149,21 @@ function updateDistances(){
 map.on('move',()=>{updateBearing();updateZoom();updateDistances();});
 
 // ---------------- Controls ----------------
-class ResetControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; const btn=document.createElement('button'); btn.className='reset-button'; btn.type='button'; btn.title='รีเซ็ตมุมมองแผนที่'; btn.innerHTML='<span>⟳</span>'; btn.addEventListener('click',e=>{e.stopPropagation(); this.map.easeTo({center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],zoom:initialZoom,bearing:initialBearing,pitch:initialPitch,duration:800});}); this.container.appendChild(btn); return this.container;} onRemove(){} }
+class ResetControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; const btn=document.createElement('button'); btn.className='reset-button'; btn.type='button'; btn.title='รีเซ็ตมุมมองแผนที่'; btn.innerHTML='<span>⟳</span>'; 
+btn.addEventListener('click', e => {
+    e.stopPropagation();
+    this.map.easeTo({
+        center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],
+        zoom:initialZoom,
+        bearing:initialBearing,
+        pitch:initialPitch,
+        duration:800
+    });
+    // เพิ่มบรรทัดนี้เพื่อรีเฟรชหน้า
+    setTimeout(()=>{ location.reload(); }, 800); // รอให้ easeTo เล่นก่อน
+});
+
+; this.container.appendChild(btn); return this.container;} onRemove(){} }
 class ToggleTableControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; this.btn=document.createElement('button'); this.btn.className='toggle-table-button'; this.btn.type='button'; this.btn.title='แสดง/ซ่อนตารางข้อมูล'; this.btn.innerHTML='<i class="fas fa-table"></i>'; this.btn.addEventListener('click',e=>{e.stopPropagation(); const container=document.getElementById('data-table-container'); if(container.style.display==='none'||container.style.display===''){ container.style.display='flex'; this.btn.classList.add('active'); this.btn.title='ซ่อนตารางข้อมูล'; } else { container.style.display='none'; this.btn.classList.remove('active'); this.btn.title='แสดงตารางข้อมูล'; } }); this.container.appendChild(this.btn); return this.container;} onRemove(){} }
 class AddLocationControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; this.btn=document.createElement('button'); this.btn.className='add-location-button'; this.btn.type='button'; this.btn.title='ทดสอบปักหมุด'; this.btn.innerHTML='<i class="fas fa-map-pin"></i>'; this.btn.addEventListener('click',e=>{e.stopPropagation(); document.getElementById('add-location-form-container').style.display='block';}); this.container.appendChild(this.btn); return this.container;} onRemove(){} }
 
