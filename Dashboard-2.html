@@ -39,13 +39,13 @@ body { margin:0; padding:0; }
   background: rgba(255,255,255,0.95); border:1px solid #777; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.4);
   z-index:10; display:none; overflow:hidden; flex-direction:column;
 }
-#window-header,#delete-window-header{
+#window-header{
   background-color:#333;color:white;padding:2px 5px;cursor:move;display:flex;justify-content:space-between;align-items:center;font-weight:bold;flex-shrink:0;line-height:0.8;font-size:11px;
 }
-#window-header .control-buttons button,#delete-window-header .control-buttons button{
+#window-header .control-buttons button{
   background:none;border:none;color:white;font-size:11px;cursor:pointer;line-height:1;width:30px;height:25px;display:flex;align-items:center;justify-content:center;border-radius:3px;
 }
-#window-header .control-buttons button:hover,#delete-window-header .control-buttons button:hover{background-color:rgba(255,255,255,0.2);}
+#window-header .control-buttons button:hover{background-color:rgba(255,255,255,0.2);}
 #window-header #close-window-btn:hover{background-color:#e74c3c;}
 
 #data-table-wrapper { padding:5px; overflow:visible; }
@@ -65,13 +65,6 @@ body { margin:0; padding:0; }
 #add-location-form .save-btn{background-color:#27ae60;color:white;}
 #add-location-form .cancel-btn{background-color:#e74c3c;color:white;}
 
-/* --- Delete Location --- */
-#delete-location-form-container {
-  position: fixed; top:60%; left:50%; transform: translate(-50%,-50%);
-  background: rgba(255,255,255,0.95); border:1px solid #777; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.4); z-index:21; display:none; width:260px;
-}
-#delete-location-dropdown { width:100%; max-height:150px; overflow-y:auto; box-sizing:border-box; margin-bottom:5px;}
-#delete-location-btn { width:100%; background:#e74c3c;color:white;padding:5px;border:none;border-radius:4px; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -122,20 +115,6 @@ body { margin:0; padding:0; }
   </form>
 </div>
 
-
-<!-- Delete Location -->
-<div id="delete-location-form-container">
-  <div id="delete-window-header">
-    <span>ลบพื้นที่</span>
-    <div class="control-buttons">
-      <button id="close-delete-location-btn" title="ปิด"><i class="fas fa-times"></i></button>
-    </div>
-  </div>
-  <div style="padding:10px;">
-    <select id="delete-location-dropdown"></select>
-    <button id="delete-location-btn">ลบ</button>
-  </div>
-</div>
 <div id="datepicker-container" style="
     position: absolute;
     top: 9px;
@@ -154,15 +133,12 @@ body { margin:0; padding:0; }
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script>
 
-    // ตั้งวันที่ DatePicker เป็นวันปัจจุบัน
 const datePicker = document.getElementById('datePicker');
 const today = new Date();
 const yyyy = today.getFullYear();
-const mm = String(today.getMonth() + 1).padStart(2, '0'); // เดือน 01-12
-const dd = String(today.getDate()).padStart(2, '0');      // วัน 01-31
+const mm = String(today.getMonth() + 1).padStart(2, '0'); 
+const dd = String(today.getDate()).padStart(2, '0');      
 datePicker.value = `${yyyy}-${mm}-${dd}`;
-
-
 
 const targetLngLat = [99.535692, 11.231666];
 const desiredOffsetSouth = 0.0010;
@@ -195,17 +171,74 @@ function updateDistances(){
 map.on('move',()=>{updateBearing();updateZoom();updateDistances();});
 
 // ---------------- Controls ----------------
-class ResetControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; const btn=document.createElement('button'); btn.className='reset-button'; btn.type='button'; btn.title='รีเซ็ตมุมมองแผนที่'; btn.innerHTML='<span>⟳</span>'; btn.addEventListener('click',e=>{e.stopPropagation(); this.map.easeTo({center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],zoom:initialZoom,bearing:initialBearing,pitch:initialPitch,duration:800});}); this.container.appendChild(btn); return this.container;} onRemove(){} }
-class ToggleTableControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; this.btn=document.createElement('button'); this.btn.className='toggle-table-button'; this.btn.type='button'; this.btn.title='แสดง/ซ่อนตารางข้อมูล'; this.btn.innerHTML='<i class="fas fa-table"></i>'; this.btn.addEventListener('click',e=>{e.stopPropagation(); const container=document.getElementById('data-table-container'); if(container.style.display==='none'||container.style.display===''){ container.style.display='flex'; this.btn.classList.add('active'); this.btn.title='ซ่อนตารางข้อมูล'; } else { container.style.display='none'; this.btn.classList.remove('active'); this.btn.title='แสดงตารางข้อมูล'; } }); this.container.appendChild(this.btn); return this.container;} onRemove(){} }
-class AddLocationControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; this.btn=document.createElement('button'); this.btn.className='add-location-button'; this.btn.type='button'; this.btn.title='เพิ่มพื้นที่'; this.btn.innerHTML='<i class="fas fa-map-pin"></i>'; this.btn.addEventListener('click',e=>{e.stopPropagation(); document.getElementById('add-location-form-container').style.display='block';}); this.container.appendChild(this.btn); return this.container;} onRemove(){} }
-class DeleteLocationControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; this.btn=document.createElement('button'); this.btn.className='delete-location-button'; this.btn.type='button'; this.btn.title='ลบพื้นที่'; this.btn.innerHTML='<i class="fas fa-trash"></i>'; this.btn.addEventListener('click',e=>{e.stopPropagation(); document.getElementById('delete-location-form-container').style.display='block'; populateDeleteDropdown(); }); this.container.appendChild(this.btn); return this.container;} onRemove(){} }
+class ResetControl { 
+    onAdd(map){
+        this.map=map;
+        this.container=document.createElement('div');
+        this.container.className='maplibregl-ctrl maplibregl-ctrl-group';
+        const btn=document.createElement('button'); 
+        btn.className='reset-button'; 
+        btn.type='button'; 
+        btn.title='รีเซ็ตมุมมองแผนที่'; 
+        btn.innerHTML='<span>⟳</span>'; 
+        btn.addEventListener('click',e=>{e.stopPropagation(); this.map.easeTo({center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],zoom:initialZoom,bearing:initialBearing,pitch:initialPitch,duration:800});}); 
+        this.container.appendChild(btn); 
+        return this.container;
+    } 
+    onRemove(){}
+}
+
+class ToggleTableControl { 
+    onAdd(map){
+        this.map=map;
+        this.container=document.createElement('div');
+        this.container.className='maplibregl-ctrl maplibregl-ctrl-group';
+        this.btn=document.createElement('button'); 
+        this.btn.className='toggle-table-button'; 
+        this.btn.type='button'; 
+        this.btn.title='แสดง/ซ่อนตารางข้อมูล'; 
+        this.btn.innerHTML='<i class="fas fa-table"></i>'; 
+        this.btn.addEventListener('click',e=>{
+            e.stopPropagation(); 
+            const container=document.getElementById('data-table-container'); 
+            if(container.style.display==='none'||container.style.display===''){ 
+                container.style.display='flex'; 
+                this.btn.classList.add('active'); 
+                this.btn.title='ซ่อนตารางข้อมูล'; 
+            } else { 
+                container.style.display='none'; 
+                this.btn.classList.remove('active'); 
+                this.btn.title='แสดงตารางข้อมูล'; 
+            } 
+        }); 
+        this.container.appendChild(this.btn); 
+        return this.container;
+    } 
+    onRemove(){}
+}
+
+class AddLocationControl { 
+    onAdd(map){
+        this.map=map;
+        this.container=document.createElement('div');
+        this.container.className='maplibregl-ctrl maplibregl-ctrl-group';
+        this.btn=document.createElement('button'); 
+        this.btn.className='add-location-button'; 
+        this.btn.type='button'; 
+        this.btn.title='เพิ่มพื้นที่'; 
+        this.btn.innerHTML='<i class="fas fa-map-pin"></i>'; 
+        this.btn.addEventListener('click',e=>{e.stopPropagation(); document.getElementById('add-location-form-container').style.display='block';}); 
+        this.container.appendChild(this.btn); 
+        return this.container;
+    } 
+    onRemove(){}
+}
 
 map.on('load',()=>{
     map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
     map.addControl(new ResetControl(),'bottom-right');
     map.addControl(new ToggleTableControl(),'bottom-right');
     map.addControl(new AddLocationControl(),'top-right');
-    map.addControl(new DeleteLocationControl(),'top-right');
     updateBearing(); updateZoom(); updateDistances();
     loadLocations();
 });
@@ -214,19 +247,14 @@ map.on('load',()=>{
 const tableContainer = document.getElementById('data-table-container');
 const windowHeader = document.getElementById('window-header');
 dragElement(windowHeader, tableContainer);
-
 document.getElementById('close-window-btn').onclick = ()=>{tableContainer.style.display='none';document.querySelector('.toggle-table-button').classList.remove('active');}
 
 // ---------------- Add Drag ----------------
 const addContainer = document.getElementById('add-location-form-container');
-const addHeader = addContainer.querySelector('h3'); // ใช้ header แทน h3
+const addHeader = addContainer.querySelector('h3'); 
 dragElement(addHeader, addContainer);
 
-// ---------------- Delete Drag ----------------
-const deleteContainer = document.getElementById('delete-location-form-container');
-const deleteHeader = document.getElementById('delete-window-header');
-dragElement(deleteHeader, deleteContainer);
-
+// ---------------- Drag function ----------------
 function dragElement(elmnt, container){
     elmnt.onmousedown = function(e){
         e.preventDefault();
@@ -270,13 +298,10 @@ function populateTable(){
 const labelOffsetMap={ top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
 
 function addMarkers(){
-    map.eachLayer?(map.eachLayer(layer=>{if(layer.type==='symbol') map.removeLayer(layer.id)})):null; // clean old
     locations.forEach(loc=>{
-        // Marker
         const markerDiv=document.createElement('div'); markerDiv.className='red-dot-marker';
         new maplibregl.Marker({element:markerDiv, anchor:'center'}).setLngLat([loc.lng,loc.lat]).addTo(map);
 
-        // Label
         const labelDiv=document.createElement('div'); labelDiv.className='custom-text-label'; labelDiv.innerText=loc.id;
         const pos=loc.labelPos?.toLowerCase(); const offset=labelOffsetMap[pos]||labelOffsetMap.top;
         new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:offset}).setLngLat([loc.lng,loc.lat]).setPopup(new maplibregl.Popup({offset:25}).setText(loc.name)).addTo(map);
@@ -299,25 +324,6 @@ document.getElementById('add-location-form').onsubmit=function(e){
 // Close add form
 document.getElementById('close-add-location-btn').onclick = ()=>{addContainer.style.display='none';}
 
-// ---------------- Delete Location Form ----------------
-function populateDeleteDropdown(){
-    const dropdown=document.getElementById('delete-location-dropdown');
-    dropdown.innerHTML='';
-    locations.forEach(loc=>{
-        const opt=document.createElement('option'); opt.value=loc.id; opt.textContent=loc.name; dropdown.appendChild(opt);
-    });
-}
-
-document.getElementById('delete-location-btn').onclick=function(){
-    const id=parseInt(document.getElementById('delete-location-dropdown').value);
-    locations=locations.filter(loc=>loc.id!==id);
-    populateTable(); addMarkers();
-    document.getElementById('delete-location-form-container').style.display='none';
-}
-
-// Close delete
-document.getElementById('close-delete-location-btn').onclick = ()=>{deleteContainer.style.display='none';}
-
 let previewMarker = null;
 
 // รีวิว
@@ -326,59 +332,22 @@ document.getElementById('preview-btn').onclick = function() {
     const lng = parseFloat(document.getElementById('new-lng').value);
     const labelPos = document.getElementById('new-label-pos').value;
 
-    // ลบ preview เก่า
     if(previewMarker) { previewMarker.forEach(m => m.remove()); }
-    previewMarker = [];
+    previewMarker=[];
+    const markerDiv=document.createElement('div'); markerDiv.className='red-dot-marker';
+    const m1=new maplibregl.Marker({element:markerDiv}).setLngLat([lng,lat]).addTo(map);
+    previewMarker.push(m1);
 
-    // หา id ใหม่จาก items ล่าสุด
-    const newId = locations.length > 0 ? Math.max(...locations.map(l => l.id)) + 1 : 1;
+    const labelDiv=document.createElement('div'); labelDiv.className='custom-text-label'; labelDiv.innerText=document.getElementById('new-name').value||'Preview';
+    const offset=labelOffsetMap[labelPos]||labelOffsetMap.top;
+    const m2=new maplibregl.Marker({element:labelDiv, offset:offset}).setLngLat([lng,lat]).addTo(map);
+    previewMarker.push(m2);
+}
 
-    // สร้าง Marker ตัวอย่าง
-    const markerDiv = document.createElement('div'); markerDiv.className='red-dot-marker';
-    const marker = new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([lng,lat]).addTo(map);
-    previewMarker.push(marker);
-
-    // Label ตัวอย่าง = id (ไม่เอาชื่อผู้ใช้)
-    const labelDiv = document.createElement('div'); labelDiv.className='custom-text-label'; labelDiv.innerText = newId;
-    const offsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
-    const offset = offsetMap[labelPos.toLowerCase()] || offsetMap.top;
-    const labelMarker = new maplibregl.Marker({element: labelDiv, anchor:'bottom', offset: offset}).setLngLat([lng,lat]).addTo(map);
-    previewMarker.push(labelMarker);
-
-    map.flyTo({center:[lng,lat], zoom:17});
-};
-
-// เคลียร์ preview
-document.getElementById('clear-preview-btn').onclick = function() {
-    if(previewMarker) {
-        previewMarker.forEach(m => m.remove());
-        previewMarker = null;
-    }
-};
-
-// บันทึก
-document.getElementById('add-location-form').onsubmit = function(e) {
-    e.preventDefault();
-    const lat = parseFloat(document.getElementById('new-lat').value);
-    const lng = parseFloat(document.getElementById('new-lng').value);
-    const labelPos = document.getElementById('new-label-pos').value;
-
-    const newId = locations.length > 0 ? Math.max(...locations.map(l => l.id)) + 1 : 1;
-
-    // เพิ่มจริง
-    locations.push({id:newId, name:document.getElementById('new-name').value, lat:lat, lng:lng, labelPos:labelPos});
-    populateTable();
-    addMarkers();
-
-    // ลบ preview
-    if(previewMarker) { previewMarker.forEach(m => m.remove()); previewMarker = null; }
-
-    document.getElementById('add-location-form-container').style.display = 'none';
-    document.getElementById('add-location-form').reset();
-};
-
-
-
+// ล้าง Preview
+document.getElementById('clear-preview-btn').onclick = function(){
+    if(previewMarker) { previewMarker.forEach(m => m.remove()); previewMarker=null; }
+}
 </script>
 </body>
 </html>
