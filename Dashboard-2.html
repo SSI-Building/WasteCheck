@@ -177,6 +177,26 @@ fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2
   .then(res => res.json())
   .then(data => console.log("Initial date sent:", data))
   .catch(err => console.error("Error sending initial date:", err));
+
+  function sendDateToScript(dateValue) {
+    fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + dateValue)
+        .then(res => res.json())
+        .then(data => {
+            console.log("Date sent:", data);
+            // เรียก loadLocations หลังจากส่งวันที่สำเร็จ
+            loadLocations();
+        })
+        .catch(err => console.error("Error sending date:", err));
+}
+
+// เมื่อผู้ใช้เปลี่ยนวันที่ใน DatePicker
+datePicker.addEventListener('change', function() {
+    sendDateToScript(this.value);
+});
+
+// ส่งวันที่อัตโนมัติเมื่อโหลดหน้าเว็บ และโหลด locations
+sendDateToScript(datePicker.value);
+
 //----------------------
 // ---------------- Controls ----------------
 class ResetControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; const btn=document.createElement('button'); btn.className='reset-button'; btn.type='button'; btn.title='รีเซ็ตมุมมองแผนที่'; btn.innerHTML='<span>⟳</span>'; 
