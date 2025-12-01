@@ -127,6 +127,22 @@ body { margin:0; padding:0; }
 ">
     <input type="date" id="datePicker">
 </div>
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="
+    display:none;
+    position:fixed;
+    top:0; left:0; right:0; bottom:0;
+    background: rgba(0,0,0,0.4);
+    z-index:9999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-size:18px;
+    font-weight:bold;
+">
+    กำลังโหลด...
+</div>
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
@@ -162,6 +178,10 @@ const bearingInfo = document.getElementById('bearing-info');
 const zoomInfo = document.getElementById('zoom-info');
 const distanceInfo = document.getElementById('distance-info');
 
+
+function showLoading() { document.getElementById('loading-overlay').style.display='flex'; }
+function hideLoading() { document.getElementById('loading-overlay').style.display='none'; }
+
 function updateBearing(){ bearingInfo.innerText=`Bearing: ${map.getBearing().toFixed(2)}°`; }
 function updateZoom(){ zoomInfo.innerText=`Zoom: ${map.getZoom().toFixed(2)}`; }
 function updateDistances(){
@@ -173,20 +193,25 @@ map.on('move',()=>{updateBearing();updateZoom();updateDistances();});
 
 
 //----------------------
+// ----------------------
 fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + datePicker.value)
   .then(res => res.json())
   .then(data => console.log("Initial date sent:", data))
   .catch(err => console.error("Error sending initial date:", err));
 
-  function sendDateToScript(dateValue) {
+function sendDateToScript(dateValue) {
+    showLoading(); // แสดงหน้าโหลด
     fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + dateValue)
         .then(res => res.json())
         .then(data => {
             console.log("Date sent:", data);
             // เรียก loadLocations หลังจากส่งวันที่สำเร็จ
-            loadLocations();
+            loadLocations().finally(() => hideLoading()); // ซ่อนหน้าโหลดหลัง loadLocations เสร็จ
         })
-        .catch(err => console.error("Error sending date:", err));
+        .catch(err => {
+            console.error("Error sending date:", err);
+            hideLoading(); // ซ่อนหน้าโหลดแม้เกิด error
+        });
 }
 
 // เมื่อผู้ใช้เปลี่ยนวันที่ใน DatePicker
