@@ -65,6 +65,22 @@ body { margin:0; padding:0; }
 #add-location-form button:last-child{margin-right:0;}
 #add-location-form .save-btn{background-color:#27ae60;color:white;}
 #add-location-form .cancel-btn{background-color:#e74c3c;color:white;}
+
+/* --- Loading Overlay (ปรับปรุงใหม่) --- */
+#loading-overlay {
+    display:none;
+    position:fixed;
+    top:0; left:0; right:0; bottom:0;
+    background: rgba(0,0,0,0.6); /* เพิ่มความเข้มพื้นหลัง */
+    backdrop-filter: blur(2px); /* เบลอฉากหลัง */
+    z-index:9999;
+    flex-direction: column; /* จัดแนวตั้ง */
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-size:18px;
+    font-weight:bold;
+}
 </style>
 </head>
 <body>
@@ -74,7 +90,6 @@ body { margin:0; padding:0; }
 <div id="zoom-info" style="display:none;">Zoom: 15.65</div>
 <div id="distance-info" style="display:none;">พิกัด: 99.535692, 11.231666</div>
 
-<!-- Table -->
 <div id="data-table-container">
   <div id="window-header">
     <span>ตารางข้อมูลพื้นที่</span>
@@ -89,7 +104,6 @@ body { margin:0; padding:0; }
   </div>
 </div>
 
-<!-- Add Location -->
 <div id="add-location-form-container">
   <h3>ทดสอบปักหมุด</h3>
   <form id="add-location-form">
@@ -128,17 +142,21 @@ body { margin:0; padding:0; }
     <input type="date" id="datePicker">
 </div>
 
+<div id="loading-overlay">
+    <i class="fas fa-spinner fa-spin" style="font-size: 40px; margin-bottom: 10px;"></i>
+    <div>กำลังโหลดข้อมูล...</div>
+</div>
+
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script>
-
 
 // ตั้งวันที่ DatePicker เป็นวันปัจจุบัน
 const datePicker = document.getElementById('datePicker');
 const today = new Date();
 const yyyy = today.getFullYear();
-const mm = String(today.getMonth() + 1).padStart(2, '0'); // เดือน 01-12
-const dd = String(today.getDate()).padStart(2, '0');      // วัน 01-31
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+const dd = String(today.getDate()).padStart(2, '0');
 datePicker.value = `${yyyy}-${mm}-${dd}`;
 
 const targetLngLat = [99.535692, 11.231666];
@@ -162,6 +180,10 @@ const bearingInfo = document.getElementById('bearing-info');
 const zoomInfo = document.getElementById('zoom-info');
 const distanceInfo = document.getElementById('distance-info');
 
+// ฟังก์ชันควบคุม Loading
+function showLoading() { document.getElementById('loading-overlay').style.display='flex'; }
+function hideLoading() { document.getElementById('loading-overlay').style.display='none'; }
+
 function updateBearing(){ bearingInfo.innerText=`Bearing: ${map.getBearing().toFixed(2)}°`; }
 function updateZoom(){ zoomInfo.innerText=`Zoom: ${map.getZoom().toFixed(2)}`; }
 function updateDistances(){
@@ -172,21 +194,33 @@ function updateDistances(){
 map.on('move',()=>{updateBearing();updateZoom();updateDistances();});
 
 
-//----------------------
-fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + datePicker.value)
-  .then(res => res.json())
-  .then(data => console.log("Initial date sent:", data))
-  .catch(err => console.error("Error sending initial date:", err));
+// ----------------------
+// --- ส่วนการโหลดข้อมูล (ปรับปรุงใหม่) ---
+// ----------------------
 
-  function sendDateToScript(dateValue) {
+// ฟังก์ชันหลักสำหรับส่งวันที่และโหลดข้อมูลใหม่
+function sendDateToScript(dateValue) {
+    // 1. เปิดหน้าโหลดทันที
+    showLoading();
+    console.log("Start fetching for date:", dateValue);
+
+    // 2. ส่งวันที่ไปยัง GAS
     fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + dateValue)
         .then(res => res.json())
         .then(data => {
-            console.log("Date sent:", data);
-            // เรียก loadLocations หลังจากส่งวันที่สำเร็จ
-            loadLocations();
+            console.log("Date sent successfully:", data);
+            // 3. เมื่อส่งวันที่เสร็จ ให้เรียกโหลด Locations ต่อทันที
+            // ต้อง return Promise เพื่อให้ finally ด้านล่างรอจนกว่า loadLocations จะเสร็จ
+            return loadLocations(); 
         })
-        .catch(err => console.error("Error sending date:", err));
+        .catch(err => {
+            console.error("Error in process:", err);
+            alert("เกิดข้อผิดพลาดในการโหลดข้อมูล");
+        })
+        .finally(() => {
+            // 4. ปิดหน้าโหลดเสมอ ไม่ว่าจะสำเร็จหรือล้มเหลว (ทำงานหลัง loadLocations เสร็จ)
+            hideLoading();
+        });
 }
 
 // เมื่อผู้ใช้เปลี่ยนวันที่ใน DatePicker
@@ -194,10 +228,7 @@ datePicker.addEventListener('change', function() {
     sendDateToScript(this.value);
 });
 
-// ส่งวันที่อัตโนมัติเมื่อโหลดหน้าเว็บ และโหลด locations
-sendDateToScript(datePicker.value);
 
-//----------------------
 // ---------------- Controls ----------------
 class ResetControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; const btn=document.createElement('button'); btn.className='reset-button'; btn.type='button'; btn.title='รีเซ็ตมุมมองแผนที่'; btn.innerHTML='<span>⟳</span>'; 
 btn.addEventListener('click', e => {
@@ -209,8 +240,8 @@ btn.addEventListener('click', e => {
         pitch:initialPitch,
         duration:800
     });
-    // เพิ่มบรรทัดนี้เพื่อรีเฟรชหน้า
-    setTimeout(()=>{ location.reload(); }, 800); // รอให้ easeTo เล่นก่อน
+    // รีเฟรชหน้า (ถ้าต้องการ)
+    setTimeout(()=>{ location.reload(); }, 800); 
 });
 
 ; this.container.appendChild(btn); return this.container;} onRemove(){} }
@@ -223,7 +254,9 @@ map.on('load',()=>{
     map.addControl(new ToggleTableControl(),'bottom-right');
     map.addControl(new AddLocationControl(),'top-right');
     updateBearing(); updateZoom(); updateDistances();
-    loadLocations();
+    
+    // เรียกโหลดข้อมูลครั้งแรกเมื่อแผนที่พร้อม
+    sendDateToScript(datePicker.value);
 });
 
 // ---------------- Table Drag ----------------
@@ -235,7 +268,7 @@ document.getElementById('close-window-btn').onclick = ()=>{tableContainer.style.
 
 // ---------------- Add Drag ----------------
 const addContainer = document.getElementById('add-location-form-container');
-const addHeader = addContainer.querySelector('h3'); // ใช้ header แทน h3
+const addHeader = addContainer.querySelector('h3');
 dragElement(addHeader, addContainer);
 
 function dragElement(elmnt, container){
@@ -265,7 +298,11 @@ async function loadLocations(){
         const data=await response.json();
         locations=data;
         populateTable(); addMarkers();
-    }catch(err){console.error('Error fetching locations:',err);}
+    }catch(err){
+        console.error('Error fetching locations:',err);
+        // ถ้า error ก็ให้โยน error ออกไปเพื่อให้ finally ใน sendDateToScript ทำงานได้ถูกต้อง
+        throw err; 
+    }
 }
 
 function populateTable(){
@@ -281,6 +318,9 @@ function populateTable(){
 const labelOffsetMap={ top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
 
 function addMarkers(){
+    // ลบ Marker เก่าออกก่อน (ถ้ามีฟังก์ชัน remove หรือ clear) - ในโค้ดเก่ายังไม่มีการ clear marker เก่า
+    // แต่เพื่อความปลอดภัยในการโหลดซ้ำ อาจจะต้องพิจารณาเพิ่มการ clearMarkers() ในอนาคต
+    
     locations.forEach(loc => {
         let colorClass = loc.status === "Complete" ? "green-dot-marker" : "red-dot-marker";
         const markerDiv = document.createElement('div'); markerDiv.className = colorClass;
