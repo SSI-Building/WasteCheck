@@ -271,11 +271,8 @@
                 } else if (filterType === 'year' && params.year) {
                     urlParams.append('year', params.year);
                 }
-            } else {
-                // Apps Script ที่คุณให้มาต้องการ parameter 'type' 
-                // หากต้องการดึงข้อมูลทั้งหมดโดยไม่ระบุ type ต้องมีการแก้ไข Apps Script 
-                // ในที่นี้จะลองเรียกโดยไม่มีพารามิเตอร์ (แต่จะไม่ได้ข้อมูลหาก Apps Script เป็นไปตามโค้ดต้นฉบับ)
-            }
+            } 
+            // Note: ถ้า filterType เป็นว่าง ('') จะเรียก API โดยไม่มี parameter ซึ่งอาจทำให้ Apps Script คืนค่าเป็นชุดข้อมูลว่าง
 
             if (urlParams.toString()) {
                 url = `${API_URL}?${urlParams.toString()}`;
@@ -405,11 +402,24 @@
             pieChart.update();
 
             // Bar Chart (Group by Area)
-            const labels = data.map(r => r.area);
-            const redData = data.map(r => r.red);
-            const greenData = data.map(r => r.green);
-            const blackData = data.map(r => r.black);
-            const foodData = data.map(r => r.food);
+            const areaCounts = data.reduce((acc, r) => {
+                const area = r.area;
+                if (!acc[area]) {
+                    acc[area] = { red: 0, green: 0, black: 0, food: 0 };
+                }
+                acc[area].red += r.red;
+                acc[area].green += r.green;
+                acc[area].black += r.black;
+                acc[area].food += r.food;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(areaCounts);
+            const redData = labels.map(label => areaCounts[label].red);
+            const greenData = labels.map(label => areaCounts[label].green);
+            const blackData = labels.map(label => areaCounts[label].black);
+            const foodData = labels.map(label => areaCounts[label].food);
+
 
             barChart.data.labels = labels;
             barChart.data.datasets[0].data = redData;
@@ -473,10 +483,8 @@
                     alert('โปรดใส่ปีสำหรับการกรองรายปี');
                     return;
                 }
-            } else {
-                 // filterType === '' (ทั้งหมด)
-                 // จะเรียก API โดยไม่มีพารามิเตอร์ ซึ่ง Apps Script อาจจะคืนค่าเป็นชุดข้อมูลว่าง
-            }
+            } 
+            // Note: ถ้า filterType เป็นว่าง ('') จะเรียก API โดยไม่มี parameter (สำหรับปุ่มรีเซ็ตในโค้ดเดิม)
 
             fetchData(filterType, params);
         }
@@ -524,14 +532,18 @@
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth() + 1; // getMonth() is 0-indexed
 
-            // กำหนดค่าเริ่มต้น
-            const todayISO = now.toISOString().split('T')[0];
-            document.getElementById('filterDay').value = todayISO;
-            document.getElementById('filterMonth').value = currentMonth;
-            document.getElementById('filterYearM').value = currentYear;
-            document.getElementById('filterYearY').value = currentYear;
-            document.getElementById('filterType').value = 'day'; // กำหนดให้กรองรายวันเป็นค่าเริ่มต้น
+            // ฟังก์ชันย่อยสำหรับกำหนดค่าเริ่มต้นของตัวกรองวันที่
+            function setInitialFilterValues() {
+                const todayISO = now.toISOString().split('T')[0];
+                document.getElementById('filterDay').value = todayISO;
+                document.getElementById('filterMonth').value = currentMonth;
+                document.getElementById('filterYearM').value = currentYear;
+                document.getElementById('filterYearY').value = currentYear;
+                document.getElementById('filterType').value = 'day'; // กำหนดให้กรองรายวันเป็นค่าเริ่มต้น
+            }
 
+            setInitialFilterValues(); // กำหนดค่าเริ่มต้นเมื่อโหลดหน้า
+            
             createCharts();
             
             // โหลดข้อมูลเริ่มต้นตามค่าเริ่มต้น (กรองรายวัน)
@@ -551,14 +563,18 @@
             document.getElementById('exportBtn').addEventListener('click', exportCSV);
             
             document.getElementById('resetBtn').addEventListener('click', () => {
-                // รีเซ็ตตัวกรอง Date/Time
-                document.getElementById('filterType').value = '';
+                // 1. รีเซ็ตตัวกรอง Date/Time กลับไปที่ 'day' และ 'วันนี้'
+                setInitialFilterValues(); 
+                
+                // 2. รีเซ็ตตัวกรอง Client-side
                 document.getElementById('searchInput').value = '';
                 document.getElementById('bagFilter').value = '';
+                
+                // 3. สลับการแสดงผล
                 switchFilterControls();
                 
-                // โหลดข้อมูลทั้งหมดอีกครั้ง (ถ้า Apps Script รองรับ) หรือโหลดตามค่าเริ่มต้น
-                fetchData('', {});
+                // 4. เรียก API เพื่อโหลดข้อมูลของวันนี้ (ค่าเริ่มต้น) ใหม่
+                handleApplyFilter();
             });
         });
     </script>
