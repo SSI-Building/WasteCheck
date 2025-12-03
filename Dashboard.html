@@ -81,6 +81,30 @@ body { margin:0; padding:0; }
     font-size:18px;
     font-weight:bold;
 }
+
+/* เพิ่มส่วนนี้เข้าไปในบล็อก <style> */
+  #performance-button {
+    position: absolute;
+    bottom: 195px; /* กำหนดให้อยู่ด้านบน */
+    right: 10px; /* เว้นระยะจากขวา (หลัง DatePicker) */
+    z-index: 50;
+    background-color: #3498db; /* สีฟ้า */
+    color: white;
+    border: none;
+    padding: 6px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    font-weight: bold;
+    font-size: 14px;
+    font-family: sans-serif;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+#performance-button:hover {
+    background-color: #2980b9;
+    transform: scale(1.02);
+}
 </style>
 </head>
 <body>
@@ -146,6 +170,10 @@ body { margin:0; padding:0; }
     <i class="fas fa-spinner fa-spin" style="font-size: 40px; margin-bottom: 10px;"></i>
     <div>กำลังโหลดข้อมูล...</div>
 </div>
+
+<button id="performance-button" title="ดูแดชบอร์ดประสิทธิภาพ">
+  <i class="fas fa-chart-bar"></i>
+</button>
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
@@ -381,6 +409,11 @@ document.getElementById('preview-btn').onclick = function() {
 document.getElementById('clear-preview-btn').onclick = function() {
     if(previewMarker) { previewMarker.forEach(m => m.remove()); previewMarker = null; }
 };
+
+document.getElementById('performance-button').addEventListener('click', function() {
+    // ลิงก์ไปยัง URL ที่คุณต้องการ
+    window.location.href = 'https://ssi-building.github.io/WasteCheck/WastePerformance.html';
+});
 </script>
 </body>
 </html>
