@@ -172,6 +172,7 @@
                 <button class="btn" id="applyFilterBtn">กรองข้อมูล</button>
                 <button class="btn" id="resetBtn">รีเซ็ต</button>
                 <button class="btn" id="exportBtn">Export CSV</button>
+                <button class="btn" onclick="goBack()">กลับหน้าหลัก</button>
                 <span id="loadingIndicator">กำลังโหลด...</span>
             </div>
             </header>
@@ -577,6 +578,9 @@
                 handleApplyFilter();
             });
         });
+        function goBack() {
+    window.location.href = "https://ssi-building.github.io/WasteCheck/Dashboard.html";
+}
     </script>
 </body>
 </html>
