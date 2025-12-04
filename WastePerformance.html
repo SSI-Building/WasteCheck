@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Waste Bag Dashboard - ตัวอย่าง</title>
+    <title>Waste Bag Dashboard - ตัวอย่าง (เปรียบเทียบ)</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -83,6 +83,11 @@
         }
         .card .title{font-size:13px;color:var(--muted);margin-bottom:6px;}
         .card .value{font-size:20px;font-weight:700;color:#111827;}
+        /* สไตล์สำหรับการเปรียบเทียบ */
+        .up { color: #dc2626; font-weight: 600; } /* สีแดงสำหรับ "เพิ่มขึ้น" (แย่ลงสำหรับขยะทั่วไป/อันตราย) */
+        .down { color: #15803d; font-weight: 600; } /* สีเขียวสำหรับ "ลดลง" (ดีขึ้นสำหรับขยะทั่วไป/อันตราย) */
+        .same { color: var(--muted); }
+
         .grid-two{
             display:grid;
             grid-template-columns: 1fr 420px;
@@ -178,11 +183,31 @@
             </header>
 
         <section class="kpi" aria-label="KPI summary">
-            <div class="card"><div class="title">ถุงแดงรวม</div><div class="value" id="totalRed">0</div></div>
-            <div class="card"><div class="title">ถุงเขียวรวม</div><div class="value" id="totalGreen">0</div></div>
-            <div class="card"><div class="title">ถุงดำรวม</div><div class="value" id="totalBlack">0</div></div>
-            <div class="card"><div class="title">ถุงใส่เศษอาหารรวม</div><div class="value" id="totalFood">0</div></div>
-            <div class="card"><div class="title">จำนวนจุดที่บันทึก</div><div class="value" id="totalLocations">0</div></div>
+            <div class="card">
+                <div class="title">ถุงแดงรวม</div>
+                <div class="value" id="totalRed">0</div>
+                <div class="compare" id="compareRed" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงเขียวรวม</div>
+                <div class="value" id="totalGreen">0</div>
+                <div class="compare" id="compareGreen" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงดำรวม</div>
+                <div class="value" id="totalBlack">0</div>
+                <div class="compare" id="compareBlack" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงใส่เศษอาหารรวม</div>
+                <div class="value" id="totalFood">0</div>
+                <div class="compare" id="compareFood" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+            <div class="card">
+                <div class="title">จำนวนจุดที่บันทึก</div>
+                <div class="value" id="totalLocations">0</div>
+                <div class="compare" id="compareLocations" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
         </section>
 
         <section class="grid-two">
@@ -243,37 +268,68 @@
         let currentData = []; 
         // ข้อมูลที่ผ่านการกรอง Search/Bag Filter แล้ว (Client-side filter)
         let filteredData = []; 
+        // ข้อมูลสำหรับเปรียบเทียบ (จากช่วงเวลาก่อนหน้า)
+        let previousData = []; 
 
         // ====== Helpers ======
         function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
 
-        // ====== Fetch, Compute KPIs and render table ======
+        /**
+         * คำนวณพารามิเตอร์ของช่วงเวลาก่อนหน้า (Previous Period)
+         * @param {string} filterType - 'day', 'month', 'year'
+         * @param {Object} currentParams - พารามิเตอร์ปัจจุบัน (day/month/year)
+         * @returns {Object|null} พารามิเตอร์สำหรับช่วงเวลาก่อนหน้า หรือ null หากไม่สามารถคำนวณได้
+         */
+        function getPreviousPeriodParams(filterType, currentParams) {
+            if (filterType === 'day' && currentParams.day) {
+                try {
+                    // สร้าง Date object จาก YYYY-MM-DD
+                    const currentDate = new Date(currentParams.day + 'T00:00:00'); 
+                    currentDate.setDate(currentDate.getDate() - 1); // ย้อนกลับไป 1 วัน
+                    const [year, month, day] = currentDate.toISOString().split('T')[0].split('-');
+                    return { day: `${year}-${month}-${day}` };
+                } catch { return null; }
+            } else if (filterType === 'month' && currentParams.month && currentParams.year) {
+                let month = parseInt(currentParams.month);
+                let year = parseInt(currentParams.year);
+                month -= 1;
+                if (month === 0) {
+                    month = 12;
+                    year -= 1;
+                }
+                return { month: month.toString(), year: year.toString() };
+            } else if (filterType === 'year' && currentParams.year) {
+                let year = parseInt(currentParams.year);
+                year -= 1;
+                return { year: year.toString() };
+            }
+            return null;
+        }
+
+        // ====== Fetch, Compute KPIs and render table (Updated) ======
 
         /**
-         * สร้าง URL สำหรับเรียก API และดึงข้อมูล
-         * @param {string} filterType - 'day', 'month', 'year', หรือ '' (ทั้งหมด)
-         * @param {Object} params - พารามิเตอร์สำหรับ API
+         * ฟังก์ชันย่อยสำหรับเรียก API ดึงข้อมูลช่วงเวลาเดียว
          */
-        async function fetchData(filterType, params) {
-            document.getElementById('loadingIndicator').style.display = 'inline';
+        async function fetchSinglePeriod(filterType, params) {
             const urlParams = new URLSearchParams();
             let url = API_URL;
 
-            if (filterType) {
+            if (filterType && params) {
                 urlParams.append('type', filterType);
 
                 if (filterType === 'day' && params.day) {
-                    // Apps Script ต้องการวันที่ในรูปแบบ DD/MM/YYYY
                     const [year, month, day] = params.day.split('-');
-                    urlParams.append('date', `${day}/${month}/${year}`);
+                    urlParams.append('date', `${day}/${month}/${year}`); // DD/MM/YYYY สำหรับ Apps Script
                 } else if (filterType === 'month' && params.month && params.year) {
                     urlParams.append('month', params.month);
                     urlParams.append('year', params.year);
                 } else if (filterType === 'year' && params.year) {
                     urlParams.append('year', params.year);
                 }
-            } 
-            // Note: ถ้า filterType เป็นว่าง ('') จะเรียก API โดยไม่มี parameter ซึ่งอาจทำให้ Apps Script คืนค่าเป็นชุดข้อมูลว่าง
+            } else {
+                return []; // ถ้าไม่มี params ที่ถูกต้อง
+            }
 
             if (urlParams.toString()) {
                 url = `${API_URL}?${urlParams.toString()}`;
@@ -285,46 +341,120 @@
                 
                 if (result.status === 'success') {
                     // Mapping ข้อมูลจาก array of arrays [ID, Area, Red, Green, Black, Food, Date]
-                    currentData = result.data.map(row => ({
+                    return result.data.map(row => ({
                         id: row[0],
                         area: row[1],
                         red: Number(row[2] || 0),
                         green: Number(row[3] || 0),
                         black: Number(row[4] || 0),
                         food: Number(row[5] || 0),
-                        // แปลงค่าวันที่จาก Apps Script (Timestamp/Date object) เป็น YYYY-MM-DD
-                        datetime: row[6] ? new Date(row[6]).toISOString().split('T')[0] : '' 
+                        // แปลงค่าวันที่จาก Apps Script เป็น YYYY-MM-DD
+                        datetime: row[6] ? new Date(row[6]).toISOString().split('T')[0] : ''
                     }));
                 } else {
                     console.error('API Error:', result);
-                    currentData = [];
+                    return [];
                 }
             } catch (error) {
                 console.error('Fetch Error:', error);
-                currentData = [];
-            } finally {
-                document.getElementById('loadingIndicator').style.display = 'none';
+                return [];
             }
-            
-            // หลังจากดึงข้อมูลเสร็จ ให้ทำการกรองฝั่ง Client-side ต่อ
-            applyClientFilters();
         }
 
-        function computeAndRender(data) {
-            // Totals (KPIs)
+        /**
+         * ดึงข้อมูลปัจจุบันและข้อมูลเปรียบเทียบจาก API พร้อมกัน
+         */
+        async function fetchData(filterType, params) {
+            document.getElementById('loadingIndicator').style.display = 'inline';
+            
+            const prevParams = getPreviousPeriodParams(filterType, params);
+            
+            const [currentPeriodData, previousPeriodData] = await Promise.all([
+                fetchSinglePeriod(filterType, params),
+                prevParams ? fetchSinglePeriod(filterType, prevParams) : Promise.resolve([])
+            ]);
+
+            currentData = currentPeriodData;
+            previousData = previousPeriodData;
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        /**
+         * แสดงผลค่าเปรียบเทียบและรูปแบบ
+         */
+        function renderComparison(elementId, current, previous, filterType, isGood=true) {
+            const diff = current - previous;
+            const diffElement = document.getElementById(elementId);
+            
+            let timeLabel = '';
+            if (filterType === 'day') timeLabel = 'เมื่อวาน';
+            else if (filterType === 'month') timeLabel = 'เดือนที่แล้ว';
+            else if (filterType === 'year') timeLabel = 'ปีก่อน';
+
+            if (diff === 0) {
+                diffElement.innerHTML = `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`;
+            } else {
+                let className = '';
+                let arrow = '';
+                let sign = diff > 0 ? '+' : '';
+                
+                // สำหรับถุงแดง, ดำ, อาหาร (ขยะทั่วไป/อันตราย): เพิ่มขึ้น = แย่ (up: red), ลดลง = ดี (down: green)
+                // สำหรับถุงเขียว (รีไซเคิล): เพิ่มขึ้น = ดี (up: green), ลดลง = แย่ (down: red)
+                
+                // ใช้ค่าตามปริมาณ: + คือ Up, - คือ Down
+                if (diff > 0) {
+                    className = 'up';
+                    arrow = '▲';
+                } else {
+                    className = 'down';
+                    arrow = '▼';
+                }
+                
+                diffElement.innerHTML = `<span class="${className}">${arrow} ${sign}${formatNumber(diff)}</span> เทียบกับ ${timeLabel}`;
+            }
+        }
+
+
+        /**
+         * คำนวณ KPI และวาดกราฟ/ตาราง
+         */
+        function computeAndRender(data, previousData) {
+            // Totals (KPIs) สำหรับช่วงเวลาปัจจุบัน
             const totals = data.reduce((acc, row) => {
                 acc.red += row.red;
                 acc.green += row.green;
                 acc.black += row.black;
                 acc.food += row.food;
                 return acc;
-            }, { red: 0, green: 0, black: 0, food: 0 });
+            }, { red: 0, green: 0, black: 0, food: 0, locations: data.length });
 
+            // คำนวณ Totals สำหรับช่วงเวลาก่อนหน้า
+            const prevTotals = previousData.reduce((acc, row) => {
+                acc.red += row.red;
+                acc.green += row.green;
+                acc.black += row.black;
+                acc.food += row.food;
+                return acc;
+            }, { red: 0, green: 0, black: 0, food: 0, locations: previousData.length });
+
+
+            // แสดงผล KPI ปัจจุบัน
             document.getElementById('totalRed').innerText = formatNumber(totals.red);
             document.getElementById('totalGreen').innerText = formatNumber(totals.green);
             document.getElementById('totalBlack').innerText = formatNumber(totals.black);
             document.getElementById('totalFood').innerText = formatNumber(totals.food);
             document.getElementById('totalLocations').innerText = data.length;
+            
+            const filterType = document.getElementById('filterType').value;
+            
+            // แสดงผลการเปรียบเทียบ
+            // Note: isGood=false สำหรับ Red/Black/Food เพราะเพิ่มขึ้นถือเป็นเรื่องที่ต้องการลดลง
+            renderComparison('compareRed', totals.red, prevTotals.red, filterType, false); 
+            renderComparison('compareGreen', totals.green, prevTotals.green, filterType, true);
+            renderComparison('compareBlack', totals.black, prevTotals.black, filterType, false);
+            renderComparison('compareFood', totals.food, prevTotals.food, filterType, false);
+            renderComparison('compareLocations', totals.locations, prevTotals.locations, filterType, true);
+
 
             // Render table
             const tbody = document.querySelector('#dataTable tbody');
@@ -353,7 +483,6 @@
         let pieChart, barChart;
 
         function createCharts() {
-            // (โค้ดสร้าง Chart.js ไม่ได้เปลี่ยนแปลงมากนัก)
             const ctxPie = document.getElementById('pieChart').getContext('2d');
             pieChart = new Chart(ctxPie, {
                 type: 'pie',
@@ -453,7 +582,8 @@
                 return true;
             });
 
-            computeAndRender(filteredData);
+            // ส่ง filteredData (ปัจจุบัน) และ previousData (ข้อมูลเปรียบเทียบ) ไปคำนวณและแสดงผล
+            computeAndRender(filteredData, previousData);
         }
 
         // ====== Filtering (Server-side API Call) ======
@@ -461,7 +591,7 @@
         /**
          * จัดการการคลิกปุ่ม "กรองข้อมูล" เพื่อเรียก API
          */
-        function handleApplyFilter() {
+        async function handleApplyFilter() {
             const filterType = document.getElementById('filterType').value;
             const params = {};
 
@@ -484,10 +614,15 @@
                     alert('โปรดใส่ปีสำหรับการกรองรายปี');
                     return;
                 }
-            } 
-            // Note: ถ้า filterType เป็นว่าง ('') จะเรียก API โดยไม่มี parameter (สำหรับปุ่มรีเซ็ตในโค้ดเดิม)
-
-            fetchData(filterType, params);
+            }
+            
+            try {
+                await fetchData(filterType, params);
+                applyClientFilters(); // หลังจากดึงข้อมูลเสร็จ ให้ทำการกรอง Client-side และ render
+            } catch(e) {
+                console.error("Error during filter application:", e);
+                // อาจแสดงข้อความ Error บนหน้าเว็บ
+            }
         }
 
         /**
@@ -527,27 +662,27 @@
             URL.revokeObjectURL(url);
         }
 
-        // ====== Init ======
+        // ====== Init & Listeners ======
+        
+        function setInitialFilterValues(now) {
+            const todayISO = now.toISOString().split('T')[0];
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1; 
+
+            document.getElementById('filterDay').value = todayISO;
+            document.getElementById('filterMonth').value = currentMonth;
+            document.getElementById('filterYearM').value = currentYear;
+            document.getElementById('filterYearY').value = currentYear;
+            document.getElementById('filterType').value = 'day'; // กำหนดให้กรองรายวันเป็นค่าเริ่มต้น
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1; // getMonth() is 0-indexed
-
-            // ฟังก์ชันย่อยสำหรับกำหนดค่าเริ่มต้นของตัวกรองวันที่
-            function setInitialFilterValues() {
-                const todayISO = now.toISOString().split('T')[0];
-                document.getElementById('filterDay').value = todayISO;
-                document.getElementById('filterMonth').value = currentMonth;
-                document.getElementById('filterYearM').value = currentYear;
-                document.getElementById('filterYearY').value = currentYear;
-                document.getElementById('filterType').value = 'day'; // กำหนดให้กรองรายวันเป็นค่าเริ่มต้น
-            }
-
-            setInitialFilterValues(); // กำหนดค่าเริ่มต้นเมื่อโหลดหน้า
+            setInitialFilterValues(now);
             
             createCharts();
             
-            // โหลดข้อมูลเริ่มต้นตามค่าเริ่มต้น (กรองรายวัน)
+            // โหลดข้อมูลเริ่มต้นตามค่าเริ่มต้น (กรองรายวันของวันนี้)
             switchFilterControls();
             handleApplyFilter(); 
 
@@ -565,7 +700,7 @@
             
             document.getElementById('resetBtn').addEventListener('click', () => {
                 // 1. รีเซ็ตตัวกรอง Date/Time กลับไปที่ 'day' และ 'วันนี้'
-                setInitialFilterValues(); 
+                setInitialFilterValues(new Date()); 
                 
                 // 2. รีเซ็ตตัวกรอง Client-side
                 document.getElementById('searchInput').value = '';
@@ -578,9 +713,10 @@
                 handleApplyFilter();
             });
         });
+        
         function goBack() {
-    window.location.href = "https://ssi-building.github.io/WasteCheck/Dashboard.html";
-}
+            window.location.href = "https://ssi-building.github.io/WasteCheck/Dashboard.html";
+        }
     </script>
 </body>
 </html>
