@@ -280,31 +280,35 @@
          * @param {Object} currentParams - พารามิเตอร์ปัจจุบัน (day/month/year)
          * @returns {Object|null} พารามิเตอร์สำหรับช่วงเวลาก่อนหน้า หรือ null หากไม่สามารถคำนวณได้
          */
-        function getPreviousPeriodParams(filterType, currentParams) {
-            if (filterType === 'day' && currentParams.day) {
-                try {
-                    // สร้าง Date object จาก YYYY-MM-DD
-                    const currentDate = new Date(currentParams.day + 'T00:00:00'); 
-                    currentDate.setDate(currentDate.getDate() - 1); // ย้อนกลับไป 1 วัน
-                    const [year, month, day] = currentDate.toISOString().split('T')[0].split('-');
-                    return { day: `${year}-${month}-${day}` };
-                } catch { return null; }
-            } else if (filterType === 'month' && currentParams.month && currentParams.year) {
-                let month = parseInt(currentParams.month);
-                let year = parseInt(currentParams.year);
-                month -= 1;
-                if (month === 0) {
-                    month = 12;
-                    year -= 1;
-                }
-                return { month: month.toString(), year: year.toString() };
-            } else if (filterType === 'year' && currentParams.year) {
-                let year = parseInt(currentParams.year);
-                year -= 1;
-                return { year: year.toString() };
-            }
-            return null;
+         function getPreviousPeriodParams(filterType, currentParams) {
+    if (filterType === 'day' && currentParams.day) {
+        // ใช้การแยกตัวเลขเพื่อเลี่ยงปัญหา Timezone Offset
+        let [y, m, d] = currentParams.day.split('-').map(Number);
+        let date = new Date(y, m - 1, d); // สร้าง date object ท้องถิ่น
+        date.setDate(date.getDate() - 1); // ย้อนไป 1 วัน
+        
+        let py = date.getFullYear();
+        let pm = String(date.getMonth() + 1).padStart(2, '0');
+        let pd = String(date.getDate()).padStart(2, '0');
+        return { day: `${py}-${pm}-${pd}` };
+    } 
+    else if (filterType === 'month' && currentParams.month && currentParams.year) {
+        let month = parseInt(currentParams.month);
+        let year = parseInt(currentParams.year);
+        month -= 1;
+        if (month === 0) {
+            month = 12;
+            year -= 1;
         }
+        return { month: month.toString(), year: year.toString() };
+    } 
+    else if (filterType === 'year' && currentParams.year) {
+        let year = parseInt(currentParams.year);
+        year -= 1;
+        return { year: year.toString() };
+    }
+    return null;
+}
 
         // ====== Fetch, Compute KPIs and render table (Updated) ======
 
@@ -382,37 +386,35 @@
         /**
          * แสดงผลค่าเปรียบเทียบและรูปแบบ
          */
-        function renderComparison(elementId, current, previous, filterType, isGood=true) {
-            const diff = current - previous;
-            const diffElement = document.getElementById(elementId);
-            
-            let timeLabel = '';
-            if (filterType === 'day') timeLabel = 'เมื่อวาน';
-            else if (filterType === 'month') timeLabel = 'เดือนที่แล้ว';
-            else if (filterType === 'year') timeLabel = 'ปีก่อน';
+         function renderComparison(elementId, current, previous, filterType, isLocationCount = false) {
+    const diff = current - previous;
+    const diffElement = document.getElementById(elementId);
+    
+    let timeLabel = '';
+    if (filterType === 'day') timeLabel = 'เมื่อวาน';
+    else if (filterType === 'month') timeLabel = 'เดือนที่แล้ว';
+    else if (filterType === 'year') timeLabel = 'ปีก่อน';
 
-            if (diff === 0) {
-                diffElement.innerHTML = `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`;
-            } else {
-                let className = '';
-                let arrow = '';
-                let sign = diff > 0 ? '+' : '';
-                
-                // สำหรับถุงแดง, ดำ, อาหาร (ขยะทั่วไป/อันตราย): เพิ่มขึ้น = แย่ (up: red), ลดลง = ดี (down: green)
-                // สำหรับถุงเขียว (รีไซเคิล): เพิ่มขึ้น = ดี (up: green), ลดลง = แย่ (down: red)
-                
-                // ใช้ค่าตามปริมาณ: + คือ Up, - คือ Down
-                if (diff > 0) {
-                    className = 'up';
-                    arrow = '▲';
-                } else {
-                    className = 'down';
-                    arrow = '▼';
-                }
-                
-                diffElement.innerHTML = `<span class="${className}">${arrow} ${sign}${formatNumber(diff)}</span> เทียบกับ ${timeLabel}`;
-            }
+    if (diff === 0) {
+        diffElement.innerHTML = `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`;
+    } else {
+        let className = '';
+        let arrow = diff > 0 ? '▲' : '▼';
+        let sign = diff > 0 ? '+' : '';
+
+        if (isLocationCount) {
+            // --- สำหรับ "จำนวนจุดที่บันทึก" ---
+            // เพิ่มขึ้น (+) = ดี (เขียว/down), ลดลง (-) = แย่ (แดง/up)
+            className = diff > 0 ? 'down' : 'up'; 
+        } else {
+            // --- สำหรับ "จำนวนถุงขยะ" ทุกประเภท ---
+            // ลดลง (-) = ดี (เขียว/down), เพิ่มขึ้น (+) = แย่ (แดง/up)
+            className = diff > 0 ? 'up' : 'down';
         }
+        
+        diffElement.innerHTML = `<span class="${className}">${arrow} ${sign}${formatNumber(diff)}</span> เทียบกับ ${timeLabel}`;
+    }
+}
 
 
         /**
