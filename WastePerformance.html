@@ -274,6 +274,30 @@
         // ====== Helpers ======
         function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
 
+            // ====== PERCENT HELPERS ======
+        const LOCATION_PER_DAY = 35;
+
+        function getDaysInMonth(year, month) {
+            return new Date(year, month, 0).getDate();
+        }
+
+        function getDaysInYear(year) {
+            return ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365;
+        }
+
+        function getMaxLocations(filterType, params) {
+            if (filterType === 'day') {
+                return LOCATION_PER_DAY;
+            }
+            if (filterType === 'month') {
+                return LOCATION_PER_DAY * getDaysInMonth(Number(params.year), Number(params.month));
+            }
+            if (filterType === 'year') {
+                return LOCATION_PER_DAY * getDaysInYear(Number(params.year));
+            }
+            return LOCATION_PER_DAY;
+        }
+
         /**
          * คำนวณพารามิเตอร์ของช่วงเวลาก่อนหน้า (Previous Period)
          * @param {string} filterType - 'day', 'month', 'year'
@@ -386,35 +410,52 @@
         /**
          * แสดงผลค่าเปรียบเทียบและรูปแบบ
          */
-         function renderComparison(elementId, current, previous, filterType, isLocationCount = false) {
-    const diff = current - previous;
-    const diffElement = document.getElementById(elementId);
-    
-    let timeLabel = '';
-    if (filterType === 'day') timeLabel = 'เมื่อวาน';
-    else if (filterType === 'month') timeLabel = 'เดือนที่แล้ว';
-    else if (filterType === 'year') timeLabel = 'ปีก่อน';
+          function renderComparison(
+              elementId,
+              current,
+              previous,
+              filterType,
+              isLocationCount = false,
+              maxValue = null
+          ) {
+              const diff = current - previous;
+              const diffElement = document.getElementById(elementId);
 
-    if (diff === 0) {
-        diffElement.innerHTML = `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`;
-    } else {
-        let className = '';
-        let arrow = diff > 0 ? '▲' : '▼';
-        let sign = diff > 0 ? '+' : '';
+              let timeLabel = '';
+              if (filterType === 'day') timeLabel = 'เมื่อวาน';
+              else if (filterType === 'month') timeLabel = 'เดือนที่แล้ว';
+              else if (filterType === 'year') timeLabel = 'ปีก่อน';
 
-        if (isLocationCount) {
-            // --- สำหรับ "จำนวนจุดที่บันทึก" ---
-            // เพิ่มขึ้น (+) = ดี (เขียว/down), ลดลง (-) = แย่ (แดง/up)
-            className = diff > 0 ? 'down' : 'up'; 
-        } else {
-            // --- สำหรับ "จำนวนถุงขยะ" ทุกประเภท ---
-            // ลดลง (-) = ดี (เขียว/down), เพิ่มขึ้น (+) = แย่ (แดง/up)
-            className = diff > 0 ? 'up' : 'down';
-        }
-        
-        diffElement.innerHTML = `<span class="${className}">${arrow} ${sign}${formatNumber(diff)}</span> เทียบกับ ${timeLabel}`;
-    }
-}
+              const diffPercent = maxValue
+                  ? Math.round((Math.abs(diff) / maxValue) * 100)
+                  : null;
+
+              if (diff === 0) {
+                  diffElement.innerHTML =
+                      `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`;
+                  return;
+              }
+
+              let arrow = diff > 0 ? '▲' : '▼';
+              let sign = diff > 0 ? '+' : '';
+              let className = '';
+
+              // logic สี
+              if (isLocationCount) {
+                  className = diff > 0 ? 'down' : 'up';
+              } else {
+                  className = diff > 0 ? 'up' : 'down';
+              }
+
+              const percentText = diffPercent !== null
+                  ? ` (${sign}${diffPercent}%)`
+                  : '';
+
+              diffElement.innerHTML =
+                  `<span class="${className}">
+                      ${arrow} ${sign}${formatNumber(diff)}${percentText}
+                  </span> เทียบกับ ${timeLabel}`;
+          }
 
 
         /**
@@ -445,9 +486,30 @@
             document.getElementById('totalGreen').innerText = formatNumber(totals.green);
             document.getElementById('totalBlack').innerText = formatNumber(totals.black);
             document.getElementById('totalFood').innerText = formatNumber(totals.food);
-            document.getElementById('totalLocations').innerText = data.length;
-            
+
             const filterType = document.getElementById('filterType').value;
+
+            // ดึงค่าพารามิเตอร์ที่เลือก
+            const params = {};
+            if (filterType === 'day') {
+                params.day = document.getElementById('filterDay').value;
+            }
+            if (filterType === 'month') {
+                params.month = document.getElementById('filterMonth').value;
+                params.year = document.getElementById('filterYearM').value;
+            }
+            if (filterType === 'year') {
+                params.year = document.getElementById('filterYearY').value;
+            }
+
+            // คำนวณ % จุดที่บันทึก
+            const maxLocations = getMaxLocations(filterType, params);
+            const locationPercent = maxLocations
+                ? Math.round((totals.locations / maxLocations) * 100)
+                : 0;
+
+            document.getElementById('totalLocations').innerText =
+                `${totals.locations} (${locationPercent}%)`;
             
             // แสดงผลการเปรียบเทียบ
             // Note: isGood=false สำหรับ Red/Black/Food เพราะเพิ่มขึ้นถือเป็นเรื่องที่ต้องการลดลง
@@ -455,7 +517,14 @@
             renderComparison('compareGreen', totals.green, prevTotals.green, filterType, false);
             renderComparison('compareBlack', totals.black, prevTotals.black, filterType, false);
             renderComparison('compareFood', totals.food, prevTotals.food, filterType, false);
-            renderComparison('compareLocations', totals.locations, prevTotals.locations, filterType, true);
+            renderComparison(
+            'compareLocations',
+            totals.locations,
+            prevTotals.locations,
+            filterType,
+            true,
+            maxLocations
+            );
 
 
             // Render table
