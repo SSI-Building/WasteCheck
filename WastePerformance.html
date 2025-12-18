@@ -219,9 +219,9 @@
                 <div class="chart-wrap">
                     <canvas id="pieChart"></canvas>
                 </div>
-                <div class="card" style="padding:10px;">
-                    <strong>สรุปจำนวนถุงขยะ</strong>
-                    <div id="bagSummary" style="margin-top:6px;font-size:13px;color:var(--muted);line-height:1.6;">
+                <div class="card">
+                    <h3 style="margin:0 0 10px 0; font-size:14px;">📊 รายละเอียดสรุป</h3>
+                    <div id="bagSummary" style="font-size:13px; color:var(--text-muted);">
                         -
                     </div>
                 </div>
@@ -298,25 +298,19 @@
         }
 
         function renderBagSummary(totals) {
-        const totalAll =
-            totals.red +
-            totals.green +
-            totals.black +
-            totals.food;
-
-        const percent = (value) =>
-            totalAll === 0 ? 0 : Math.round((value / totalAll) * 100);
-
-        const html = `
-            🟥 ถุงแดง: ${formatNumber(totals.red)} ใบ (${percent(totals.red)}%)<br>
-            🟩 ถุงเขียว: ${formatNumber(totals.green)} ใบ (${percent(totals.green)}%)<br>
-            ⬛ ถุงดำ: ${formatNumber(totals.black)} ใบ (${percent(totals.black)}%)<br>
-            🟨 ถุงอาหาร: ${formatNumber(totals.food)} ใบ (${percent(totals.food)}%)<br>
-            <hr style="border:none;border-top:1px solid #eee;margin:6px 0;">
-            <strong>รวมทั้งหมด: ${formatNumber(totalAll)} ใบ</strong>
-        `;
-
-        document.getElementById('bagSummary').innerHTML = html;
+            const totalAll = totals.red + totals.green + totals.black + totals.food;
+            const percent = (value) => totalAll === 0 ? 0 : Math.round((value / totalAll) * 100);
+            const html = `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                    <div>🟥 ถุงแดง: ${formatNumber(totals.red)} (${percent(totals.red)}%)</div>
+                    <div>⬛ ถุงดำ: ${formatNumber(totals.black)} (${percent(totals.black)}%)</div>
+                    <div>🟩 ถุงเขียว: ${formatNumber(totals.green)} (${percent(totals.green)}%)</div>
+                    <div>🟨 ถุงอาหาร: ${formatNumber(totals.food)} (${percent(totals.food)}%)</div>
+                </div>
+                <div style="margin-top:12px; padding-top:10px; border-top:1px solid #eee; font-weight:700; color:var(--text-main);">
+                    รวม: ${formatNumber(totalAll)} ใบ
+                </div>`;
+            document.getElementById('bagSummary').innerHTML = html;
         }
 
         /**
