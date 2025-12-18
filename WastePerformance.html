@@ -220,11 +220,10 @@
                     <canvas id="pieChart"></canvas>
                 </div>
                 <div class="card" style="padding:10px;">
-                    <strong>คำอธิบาย</strong>
-                    <p style="margin:6px 0 0 0;color:var(--muted);font-size:13px;">
-                      แผนภูมิวงกลม (Pie Chart) แสดงให้เห็นถึง สัดส่วนรวม ของจำนวนถุงแต่ละประเภท
-                      แดง(ขยะอันตราย), เขียว(ขยะรีไซเคิล), ดำ(ขยะทั่วไป), เหลือง(ขยะเศษอาหาร)
-                    </p>
+                    <strong>สรุปจำนวนถุงขยะ</strong>
+                    <div id="bagSummary" style="margin-top:6px;font-size:13px;color:var(--muted);line-height:1.6;">
+                        -
+                    </div>
                 </div>
             </div>
         </section>
@@ -296,6 +295,28 @@
                 return LOCATION_PER_DAY * getDaysInYear(Number(params.year));
             }
             return LOCATION_PER_DAY;
+        }
+
+        function renderBagSummary(totals) {
+        const totalAll =
+            totals.red +
+            totals.green +
+            totals.black +
+            totals.food;
+
+        const percent = (value) =>
+            totalAll === 0 ? 0 : Math.round((value / totalAll) * 100);
+
+        const html = `
+            🟥 ถุงแดง: ${formatNumber(totals.red)} ใบ (${percent(totals.red)}%)<br>
+            🟩 ถุงเขียว: ${formatNumber(totals.green)} ใบ (${percent(totals.green)}%)<br>
+            ⬛ ถุงดำ: ${formatNumber(totals.black)} ใบ (${percent(totals.black)}%)<br>
+            🟨 ถุงอาหาร: ${formatNumber(totals.food)} ใบ (${percent(totals.food)}%)<br>
+            <hr style="border:none;border-top:1px solid #eee;margin:6px 0;">
+            <strong>รวมทั้งหมด: ${formatNumber(totalAll)} ใบ</strong>
+        `;
+
+        document.getElementById('bagSummary').innerHTML = html;
         }
 
         /**
@@ -486,6 +507,7 @@
             document.getElementById('totalGreen').innerText = formatNumber(totals.green);
             document.getElementById('totalBlack').innerText = formatNumber(totals.black);
             document.getElementById('totalFood').innerText = formatNumber(totals.food);
+            renderBagSummary(totals);
 
             const filterType = document.getElementById('filterType').value;
 
