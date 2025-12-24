@@ -37,7 +37,6 @@
             font-size:20px;
             color:var(--accent);
         }
-        /* ปรับปรุง .controls ให้ยืดหยุ่นและมีช่องว่าง */
         .controls{
             display:flex;
             flex-wrap: wrap; 
@@ -58,7 +57,7 @@
             color: var(--accent);
             font-weight: 600;
             margin-left: 10px;
-            display: none; /* ซ่อนไว้เป็นค่าเริ่มต้น */
+            display: none;
         }
         .btn{
             background:var(--accent);
@@ -83,9 +82,8 @@
         }
         .card .title{font-size:13px;color:var(--muted);margin-bottom:6px;}
         .card .value{font-size:20px;font-weight:700;color:#111827;}
-        /* สไตล์สำหรับการเปรียบเทียบ */
-        .up { color: #dc2626; font-weight: 600; } /* สีแดงสำหรับ "เพิ่มขึ้น" (แย่ลงสำหรับขยะทั่วไป/อันตราย) */
-        .down { color: #15803d; font-weight: 600; } /* สีเขียวสำหรับ "ลดลง" (ดีขึ้นสำหรับขยะทั่วไป/อันตราย) */
+        .up { color: #dc2626; font-weight: 600; } 
+        .down { color: #15803d; font-weight: 600; } 
         .same { color: var(--muted); }
 
         .grid-two{
@@ -135,7 +133,6 @@
             .kpi{grid-template-columns:repeat(2,1fr);}
             .grid-two{grid-template-columns:1fr;}
             canvas{height:260px !important;}
-            /* ปรับปรุงให้ controls แสดงผลดีขึ้นในมือถือ */
             .controls {
                 flex-direction: column;
                 align-items: flex-start;
@@ -180,7 +177,7 @@
                 <button class="btn" onclick="goBack()">กลับหน้าหลัก</button>
                 <span id="loadingIndicator">กำลังโหลด...</span>
             </div>
-            </header>
+        </header>
 
         <section class="kpi" aria-label="KPI summary">
             <div class="card">
@@ -220,7 +217,7 @@
                     <canvas id="pieChart"></canvas>
                 </div>
                 <div class="card">
-                    <h3 style="margin:0 0 10px 0; font-size:14px;">📊 รายละเอียดสรุป</h3>
+                    <h3 style="margin:0 0 10px 0; font-size:14px;">📊 รายละเอียดสรุป (เทียบช่วงก่อนหน้า)</h3>
                     <div id="bagSummary" style="font-size:13px; color:var(--text-muted);">
                         -
                     </div>
@@ -263,330 +260,207 @@
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbzoDaY-EPmqPUlNf_TQEeOZ7IqbEgfsUZ6-8ViMOAXZXVsm5AhRvWUgb2hV8XzT7yozxQ/exec';
         
-        // ข้อมูลที่ดึงมาจาก API ทั้งหมด (ตามการกรอง วัน/เดือน/ปี)
         let currentData = []; 
-        // ข้อมูลที่ผ่านการกรอง Search/Bag Filter แล้ว (Client-side filter)
         let filteredData = []; 
-        // ข้อมูลสำหรับเปรียบเทียบ (จากช่วงเวลาก่อนหน้า)
         let previousData = []; 
 
-        // ====== Helpers ======
         function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
 
-            // ====== PERCENT HELPERS ======
         const LOCATION_PER_DAY = 35;
 
-        function getDaysInMonth(year, month) {
-            return new Date(year, month, 0).getDate();
-        }
-
-        function getDaysInYear(year) {
-            return ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365;
-        }
+        function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+        function getDaysInYear(year) { return ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365; }
 
         function getMaxLocations(filterType, params) {
-            if (filterType === 'day') {
-                return LOCATION_PER_DAY;
-            }
-            if (filterType === 'month') {
-                return LOCATION_PER_DAY * getDaysInMonth(Number(params.year), Number(params.month));
-            }
-            if (filterType === 'year') {
-                return LOCATION_PER_DAY * getDaysInYear(Number(params.year));
-            }
+            if (filterType === 'day') return LOCATION_PER_DAY;
+            if (filterType === 'month') return LOCATION_PER_DAY * getDaysInMonth(Number(params.year), Number(params.month));
+            if (filterType === 'year') return LOCATION_PER_DAY * getDaysInYear(Number(params.year));
             return LOCATION_PER_DAY;
         }
 
-        function renderBagSummary(totals) {
+        // ====== ฟังก์ชันใหม่สำหรับคำนวณ % การเพิ่มลดในสรุป ======
+        function getTrendHtml(current, previous) {
+            if (previous === 0) return current > 0 ? `<span class="up">▲ New</span>` : `<span class="same">-</span>`;
+            const diffPercent = Math.round(((current - previous) / previous) * 100);
+            if (diffPercent === 0) return `<span class="same">0%</span>`;
+            const arrow = diffPercent > 0 ? '▲' : '▼';
+            const className = diffPercent > 0 ? 'up' : 'down';
+            return `<span class="${className}">${arrow} ${Math.abs(diffPercent)}%</span>`;
+        }
+
+        function renderBagSummary(totals, prevTotals) {
             const totalAll = totals.red + totals.green + totals.black + totals.food;
+            const prevTotalAll = prevTotals.red + prevTotals.green + prevTotals.black + prevTotals.food;
             const percent = (value) => totalAll === 0 ? 0 : Math.round((value / totalAll) * 100);
+            
             const html = `
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                    <div>🟥 ถุงแดง: ${formatNumber(totals.red)} (${percent(totals.red)}%)</div>
-                    <div>⬛ ถุงดำ: ${formatNumber(totals.black)} (${percent(totals.black)}%)</div>
-                    <div>🟩 ถุงเขียว: ${formatNumber(totals.green)} (${percent(totals.green)}%)</div>
-                    <div>🟨 ถุงอาหาร: ${formatNumber(totals.food)} (${percent(totals.food)}%)</div>
+                    <div>🟥 ถุงแดง: ${formatNumber(totals.red)} (${percent(totals.red)}%) ${getTrendHtml(totals.red, prevTotals.red)}</div>
+                    <div>⬛ ถุงดำ: ${formatNumber(totals.black)} (${percent(totals.black)}%) ${getTrendHtml(totals.black, prevTotals.black)}</div>
+                    <div>🟩 ถุงเขียว: ${formatNumber(totals.green)} (${percent(totals.green)}%) ${getTrendHtml(totals.green, prevTotals.green)}</div>
+                    <div>🟨 ถุงอาหาร: ${formatNumber(totals.food)} (${percent(totals.food)}%) ${getTrendHtml(totals.food, prevTotals.food)}</div>
                 </div>
-                <div style="margin-top:12px; padding-top:10px; border-top:1px solid #eee; font-weight:700; color:var(--text-main);">
-                    รวม: ${formatNumber(totalAll)} ใบ
+                <div style="margin-top:12px; padding-top:10px; border-top:1px solid #eee; font-weight:700;">
+                    รวมทั้งหมด: ${formatNumber(totalAll)} ใบ ${getTrendHtml(totalAll, prevTotalAll)}
                 </div>`;
             document.getElementById('bagSummary').innerHTML = html;
         }
 
         /**
-         * คำนวณพารามิเตอร์ของช่วงเวลาก่อนหน้า (Previous Period)
-         * @param {string} filterType - 'day', 'month', 'year'
-         * @param {Object} currentParams - พารามิเตอร์ปัจจุบัน (day/month/year)
-         * @returns {Object|null} พารามิเตอร์สำหรับช่วงเวลาก่อนหน้า หรือ null หากไม่สามารถคำนวณได้
+         * ปรับปรุง: หักวันอาทิตย์ออกจากการเปรียบเทียบ
          */
-         function getPreviousPeriodParams(filterType, currentParams) {
-    if (filterType === 'day' && currentParams.day) {
-        // ใช้การแยกตัวเลขเพื่อเลี่ยงปัญหา Timezone Offset
-        let [y, m, d] = currentParams.day.split('-').map(Number);
-        let date = new Date(y, m - 1, d); // สร้าง date object ท้องถิ่น
-        date.setDate(date.getDate() - 1); // ย้อนไป 1 วัน
-        
-        let py = date.getFullYear();
-        let pm = String(date.getMonth() + 1).padStart(2, '0');
-        let pd = String(date.getDate()).padStart(2, '0');
-        return { day: `${py}-${pm}-${pd}` };
-    } 
-    else if (filterType === 'month' && currentParams.month && currentParams.year) {
-        let month = parseInt(currentParams.month);
-        let year = parseInt(currentParams.year);
-        month -= 1;
-        if (month === 0) {
-            month = 12;
-            year -= 1;
+        function getPreviousPeriodParams(filterType, currentParams) {
+            if (filterType === 'day' && currentParams.day) {
+                let [y, m, d] = currentParams.day.split('-').map(Number);
+                let date = new Date(y, m - 1, d);
+                
+                // ย้อนไป 1 วัน
+                date.setDate(date.getDate() - 1);
+                
+                // ถ้าเป็นวันอาทิตย์ (0) ให้ย้อนไปอีกเป็นวันเสาร์
+                if (date.getDay() === 0) {
+                    date.setDate(date.getDate() - 1);
+                }
+                
+                let py = date.getFullYear();
+                let pm = String(date.getMonth() + 1).padStart(2, '0');
+                let pd = String(date.getDate()).padStart(2, '0');
+                return { day: `${py}-${pm}-${pd}` };
+            } 
+            else if (filterType === 'month' && currentParams.month && currentParams.year) {
+                let month = parseInt(currentParams.month);
+                let year = parseInt(currentParams.year);
+                month -= 1;
+                if (month === 0) { month = 12; year -= 1; }
+                return { month: month.toString(), year: year.toString() };
+            } 
+            else if (filterType === 'year' && currentParams.year) {
+                let year = parseInt(currentParams.year);
+                year -= 1;
+                return { year: year.toString() };
+            }
+            return null;
         }
-        return { month: month.toString(), year: year.toString() };
-    } 
-    else if (filterType === 'year' && currentParams.year) {
-        let year = parseInt(currentParams.year);
-        year -= 1;
-        return { year: year.toString() };
-    }
-    return null;
-}
 
-        // ====== Fetch, Compute KPIs and render table (Updated) ======
-
-        /**
-         * ฟังก์ชันย่อยสำหรับเรียก API ดึงข้อมูลช่วงเวลาเดียว
-         */
         async function fetchSinglePeriod(filterType, params) {
             const urlParams = new URLSearchParams();
-            let url = API_URL;
-
             if (filterType && params) {
                 urlParams.append('type', filterType);
-
                 if (filterType === 'day' && params.day) {
                     const [year, month, day] = params.day.split('-');
-                    urlParams.append('date', `${day}/${month}/${year}`); // DD/MM/YYYY สำหรับ Apps Script
+                    urlParams.append('date', `${day}/${month}/${year}`);
                 } else if (filterType === 'month' && params.month && params.year) {
                     urlParams.append('month', params.month);
                     urlParams.append('year', params.year);
                 } else if (filterType === 'year' && params.year) {
                     urlParams.append('year', params.year);
                 }
-            } else {
-                return []; // ถ้าไม่มี params ที่ถูกต้อง
-            }
+            } else { return []; }
 
-            if (urlParams.toString()) {
-                url = `${API_URL}?${urlParams.toString()}`;
-            }
-
+            const url = `${API_URL}?${urlParams.toString()}`;
             try {
                 const response = await fetch(url);
                 const result = await response.json();
-                
                 if (result.status === 'success') {
-                    // Mapping ข้อมูลจาก array of arrays [ID, Area, Red, Green, Black, Food, Date]
                     return result.data.map(row => ({
-                        id: row[0],
-                        area: row[1],
-                        red: Number(row[2] || 0),
-                        green: Number(row[3] || 0),
-                        black: Number(row[4] || 0),
-                        food: Number(row[5] || 0),
-                        // แปลงค่าวันที่จาก Apps Script เป็น YYYY-MM-DD
+                        id: row[0], area: row[1], red: Number(row[2] || 0), green: Number(row[3] || 0),
+                        black: Number(row[4] || 0), food: Number(row[5] || 0),
                         datetime: row[6] ? new Date(row[6]).toISOString().split('T')[0] : ''
                     }));
-                } else {
-                    console.error('API Error:', result);
-                    return [];
                 }
-            } catch (error) {
-                console.error('Fetch Error:', error);
                 return [];
-            }
+            } catch (error) { return []; }
         }
 
-        /**
-         * ดึงข้อมูลปัจจุบันและข้อมูลเปรียบเทียบจาก API พร้อมกัน
-         */
         async function fetchData(filterType, params) {
             document.getElementById('loadingIndicator').style.display = 'inline';
-            
             const prevParams = getPreviousPeriodParams(filterType, params);
-            
             const [currentPeriodData, previousPeriodData] = await Promise.all([
                 fetchSinglePeriod(filterType, params),
                 prevParams ? fetchSinglePeriod(filterType, prevParams) : Promise.resolve([])
             ]);
-
             currentData = currentPeriodData;
             previousData = previousPeriodData;
             document.getElementById('loadingIndicator').style.display = 'none';
         }
 
-        /**
-         * แสดงผลค่าเปรียบเทียบและรูปแบบ
-         */
-          function renderComparison(
-              elementId,
-              current,
-              previous,
-              filterType,
-              isLocationCount = false,
-              maxValue = null
-          ) {
-              const diff = current - previous;
-              const diffElement = document.getElementById(elementId);
+        function renderComparison(elementId, current, previous, filterType, isLocationCount = false, maxValue = null) {
+            const diff = current - previous;
+            const diffElement = document.getElementById(elementId);
+            let timeLabel = filterType === 'day' ? 'เมื่อวาน' : (filterType === 'month' ? 'เดือนที่แล้ว' : 'ปีก่อน');
 
-              let timeLabel = '';
-              if (filterType === 'day') timeLabel = 'เมื่อวาน';
-              else if (filterType === 'month') timeLabel = 'เดือนที่แล้ว';
-              else if (filterType === 'year') timeLabel = 'ปีก่อน';
+            if (diff === 0) {
+                diffElement.innerHTML = `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`;
+                return;
+            }
 
-              const diffPercent = maxValue
-                  ? Math.round((Math.abs(diff) / maxValue) * 100)
-                  : null;
+            let arrow = diff > 0 ? '▲' : '▼';
+            let sign = diff > 0 ? '+' : '';
+            let className = isLocationCount ? (diff > 0 ? 'down' : 'up') : (diff > 0 ? 'up' : 'down');
+            
+            const diffPercent = maxValue ? Math.round((Math.abs(diff) / maxValue) * 100) : (previous > 0 ? Math.round((Math.abs(diff) / previous) * 100) : null);
+            const percentText = diffPercent !== null ? ` (${sign}${diffPercent}%)` : '';
 
-              if (diff === 0) {
-                  diffElement.innerHTML =
-                      `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`;
-                  return;
-              }
+            diffElement.innerHTML = `<span class="${className}">${arrow} ${sign}${formatNumber(diff)}${percentText}</span> เทียบกับ ${timeLabel}`;
+        }
 
-              let arrow = diff > 0 ? '▲' : '▼';
-              let sign = diff > 0 ? '+' : '';
-              let className = '';
-
-              // logic สี
-              if (isLocationCount) {
-                  className = diff > 0 ? 'down' : 'up';
-              } else {
-                  className = diff > 0 ? 'up' : 'down';
-              }
-
-              const percentText = diffPercent !== null
-                  ? ` (${sign}${diffPercent}%)`
-                  : '';
-
-              diffElement.innerHTML =
-                  `<span class="${className}">
-                      ${arrow} ${sign}${formatNumber(diff)}${percentText}
-                  </span> เทียบกับ ${timeLabel}`;
-          }
-
-
-        /**
-         * คำนวณ KPI และวาดกราฟ/ตาราง
-         */
         function computeAndRender(data, previousData) {
-            // Totals (KPIs) สำหรับช่วงเวลาปัจจุบัน
             const totals = data.reduce((acc, row) => {
-                acc.red += row.red;
-                acc.green += row.green;
-                acc.black += row.black;
-                acc.food += row.food;
+                acc.red += row.red; acc.green += row.green; acc.black += row.black; acc.food += row.food;
                 return acc;
             }, { red: 0, green: 0, black: 0, food: 0, locations: data.length });
 
-            // คำนวณ Totals สำหรับช่วงเวลาก่อนหน้า
             const prevTotals = previousData.reduce((acc, row) => {
-                acc.red += row.red;
-                acc.green += row.green;
-                acc.black += row.black;
-                acc.food += row.food;
+                acc.red += row.red; acc.green += row.green; acc.black += row.black; acc.food += row.food;
                 return acc;
             }, { red: 0, green: 0, black: 0, food: 0, locations: previousData.length });
 
-
-            // แสดงผล KPI ปัจจุบัน
             document.getElementById('totalRed').innerText = formatNumber(totals.red);
             document.getElementById('totalGreen').innerText = formatNumber(totals.green);
             document.getElementById('totalBlack').innerText = formatNumber(totals.black);
             document.getElementById('totalFood').innerText = formatNumber(totals.food);
-            renderBagSummary(totals);
+            
+            // ส่งค่าไป render สรุปพร้อม % การเพิ่มลด
+            renderBagSummary(totals, prevTotals);
 
             const filterType = document.getElementById('filterType').value;
+            const params = {
+                day: document.getElementById('filterDay').value,
+                month: document.getElementById('filterMonth').value,
+                year: (filterType === 'month') ? document.getElementById('filterYearM').value : document.getElementById('filterYearY').value
+            };
 
-            // ดึงค่าพารามิเตอร์ที่เลือก
-            const params = {};
-            if (filterType === 'day') {
-                params.day = document.getElementById('filterDay').value;
-            }
-            if (filterType === 'month') {
-                params.month = document.getElementById('filterMonth').value;
-                params.year = document.getElementById('filterYearM').value;
-            }
-            if (filterType === 'year') {
-                params.year = document.getElementById('filterYearY').value;
-            }
-
-            // คำนวณ % จุดที่บันทึก
             const maxLocations = getMaxLocations(filterType, params);
-            const locationPercent = maxLocations
-                ? Math.round((totals.locations / maxLocations) * 100)
-                : 0;
-
-            document.getElementById('totalLocations').innerText =
-                `${totals.locations} (${locationPercent}%)`;
+            const locationPercent = maxLocations ? Math.round((totals.locations / maxLocations) * 100) : 0;
+            document.getElementById('totalLocations').innerText = `${totals.locations} (${locationPercent}%)`;
             
-            // แสดงผลการเปรียบเทียบ
-            // Note: isGood=false สำหรับ Red/Black/Food เพราะเพิ่มขึ้นถือเป็นเรื่องที่ต้องการลดลง
             renderComparison('compareRed', totals.red, prevTotals.red, filterType, false); 
             renderComparison('compareGreen', totals.green, prevTotals.green, filterType, false);
             renderComparison('compareBlack', totals.black, prevTotals.black, filterType, false);
             renderComparison('compareFood', totals.food, prevTotals.food, filterType, false);
-            renderComparison(
-            'compareLocations',
-            totals.locations,
-            prevTotals.locations,
-            filterType,
-            true,
-            maxLocations
-            );
+            renderComparison('compareLocations', totals.locations, prevTotals.locations, filterType, true, maxLocations);
 
-
-            // Render table
             const tbody = document.querySelector('#dataTable tbody');
             tbody.innerHTML = '';
             data.forEach(r => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${r.id}</td>
-                    <td>${r.area}</td>
-                    <td>${r.red}</td>
-                    <td>${r.green}</td>
-                    <td>${r.black}</td>
-                    <td>${r.food}</td>
-                    <td>${r.datetime}</td>
-                `;
+                tr.innerHTML = `<td>${r.id}</td><td>${r.area}</td><td>${r.red}</td><td>${r.green}</td><td>${r.black}</td><td>${r.food}</td><td>${r.datetime}</td>`;
                 tbody.appendChild(tr);
             });
-
             document.getElementById('rowsCount').innerText = data.length;
-
-            // Update charts
             updateCharts(data, totals);
         }
 
-        // ====== Charts ======
         let pieChart, barChart;
-
         function createCharts() {
             const ctxPie = document.getElementById('pieChart').getContext('2d');
             pieChart = new Chart(ctxPie, {
                 type: 'pie',
                 data: {
                     labels: ['ถุงแดง', 'ถุงเขียว', 'ถุงดำ', 'ถุงอาหาร'],
-                    datasets: [{
-                        data: [0, 0, 0, 0],
-                        backgroundColor: ['#ef4444', '#10b981', '#111827', '#f59e0b'],
-                        borderColor: '#fff',
-                        borderWidth: 1
-                    }]
+                    datasets: [{ data: [0, 0, 0, 0], backgroundColor: ['#ef4444', '#10b981', '#111827', '#f59e0b'], borderWidth: 1 }]
                 },
-                options: {
-                    plugins: { legend: { position: 'bottom' } },
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
+                options: { plugins: { legend: { position: 'bottom' } }, responsive: true, maintainAspectRatio: false }
             });
 
             const ctxBar = document.getElementById('barChart').getContext('2d');
@@ -601,209 +475,104 @@
                         { label: 'ถุงอาหาร', data: [], stack: 'stack1', backgroundColor: '#f59e0b' }
                     ]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { stacked: true, ticks: { maxRotation: 40, minRotation: 0 } },
-                        y: { stacked: true, beginAtZero: true }
-                    },
-                    plugins: { legend: { position: 'bottom' } }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
             });
         }
 
         function updateCharts(data, totals) {
-            // Pie Chart
             pieChart.data.datasets[0].data = [totals.red, totals.green, totals.black, totals.food];
             pieChart.update();
 
-            // Bar Chart (Group by Area)
             const areaCounts = data.reduce((acc, r) => {
-                const area = r.area;
-                if (!acc[area]) {
-                    acc[area] = { red: 0, green: 0, black: 0, food: 0 };
-                }
-                acc[area].red += r.red;
-                acc[area].green += r.green;
-                acc[area].black += r.black;
-                acc[area].food += r.food;
+                if (!acc[r.area]) acc[r.area] = { red: 0, green: 0, black: 0, food: 0 };
+                acc[r.area].red += r.red; acc[r.area].green += r.green; acc[r.area].black += r.black; acc[r.area].food += r.food;
                 return acc;
             }, {});
 
             const labels = Object.keys(areaCounts);
-            const redData = labels.map(label => areaCounts[label].red);
-            const greenData = labels.map(label => areaCounts[label].green);
-            const blackData = labels.map(label => areaCounts[label].black);
-            const foodData = labels.map(label => areaCounts[label].food);
-
-
             barChart.data.labels = labels;
-            barChart.data.datasets[0].data = redData;
-            barChart.data.datasets[1].data = greenData;
-            barChart.data.datasets[2].data = blackData;
-            barChart.data.datasets[3].data = foodData;
+            barChart.data.datasets[0].data = labels.map(l => areaCounts[l].red);
+            barChart.data.datasets[1].data = labels.map(l => areaCounts[l].green);
+            barChart.data.datasets[2].data = labels.map(l => areaCounts[l].black);
+            barChart.data.datasets[3].data = labels.map(l => areaCounts[l].food);
             barChart.update();
         }
 
-        // ====== Filtering & Search (Client-side) ======
-
-        /**
-         * ใช้สำหรับกรองข้อมูลจาก 'currentData' ด้วย Search/Bag Filter
-         */
         function applyClientFilters() {
             const search = document.getElementById('searchInput').value.trim().toLowerCase();
             const bagFilter = document.getElementById('bagFilter').value;
-
             filteredData = currentData.filter(r => {
-                if (search) {
-                    if (!r.area.toLowerCase().includes(search)) return false;
-                }
-                if (bagFilter) {
-                    // Client-side filtering for bag type > 0
-                    if (bagFilter === 'red' && !(r.red > 0)) return false;
-                    if (bagFilter === 'green' && !(r.green > 0)) return false;
-                    if (bagFilter === 'black' && !(r.black > 0)) return false;
-                    if (bagFilter === 'food' && !(r.food > 0)) return false;
-                }
+                if (search && !r.area.toLowerCase().includes(search)) return false;
+                if (bagFilter && !(r[bagFilter] > 0)) return false;
                 return true;
             });
-
-            // ส่ง filteredData (ปัจจุบัน) และ previousData (ข้อมูลเปรียบเทียบ) ไปคำนวณและแสดงผล
             computeAndRender(filteredData, previousData);
         }
 
-        // ====== Filtering (Server-side API Call) ======
-
-        /**
-         * จัดการการคลิกปุ่ม "กรองข้อมูล" เพื่อเรียก API
-         */
         async function handleApplyFilter() {
             const filterType = document.getElementById('filterType').value;
-            const params = {};
-
-            if (filterType === 'day') {
-                params.day = document.getElementById('filterDay').value;
-                if (!params.day) {
-                    alert('โปรดเลือกวันที่สำหรับการกรองรายวัน');
-                    return;
-                }
-            } else if (filterType === 'month') {
-                params.month = document.getElementById('filterMonth').value;
-                params.year = document.getElementById('filterYearM').value;
-                if (!params.month || !params.year) {
-                    alert('โปรดใส่เดือนและปีสำหรับการกรองรายเดือน');
-                    return;
-                }
-            } else if (filterType === 'year') {
-                params.year = document.getElementById('filterYearY').value;
-                if (!params.year) {
-                    alert('โปรดใส่ปีสำหรับการกรองรายปี');
-                    return;
-                }
+            const params = {
+                day: document.getElementById('filterDay').value,
+                month: document.getElementById('filterMonth').value,
+                year: (filterType === 'month') ? document.getElementById('filterYearM').value : document.getElementById('filterYearY').value
+            };
+            if ((filterType==='day' && !params.day) || (filterType==='month' && (!params.month || !params.year)) || (filterType==='year' && !params.year)) {
+                alert('โปรดเลือกเงื่อนไขการกรองให้ครบถ้วน'); return;
             }
-            
-            try {
-                await fetchData(filterType, params);
-                applyClientFilters(); // หลังจากดึงข้อมูลเสร็จ ให้ทำการกรอง Client-side และ render
-            } catch(e) {
-                console.error("Error during filter application:", e);
-                // อาจแสดงข้อความ Error บนหน้าเว็บ
-            }
+            await fetchData(filterType, params);
+            applyClientFilters();
         }
 
-        /**
-         * สลับการแสดง Input ตามประเภทการกรองที่เลือก
-         */
         function switchFilterControls() {
             const type = document.getElementById('filterType').value;
-            document.getElementById('dayControls').style.display = 'none';
-            document.getElementById('monthControls').style.display = 'none';
-            document.getElementById('yearControls').style.display = 'none';
-
-            if (type === 'day') {
-                document.getElementById('dayControls').style.display = 'flex';
-            } else if (type === 'month') {
-                document.getElementById('monthControls').style.display = 'flex';
-            } else if (type === 'year') {
-                document.getElementById('yearControls').style.display = 'flex';
-            }
+            document.getElementById('dayControls').style.display = type === 'day' ? 'flex' : 'none';
+            document.getElementById('monthControls').style.display = type === 'month' ? 'flex' : 'none';
+            document.getElementById('yearControls').style.display = type === 'year' ? 'flex' : 'none';
         }
 
-        // ====== Export CSV ======
         function exportCSV() {
-            const rows = [
-                ['หมายเลข', 'พื้นที่', 'ถุงแดง', 'ถุงเขียว', 'ถุงดำ', 'ถุงอาหาร', 'วันที่']
-            ];
-            // ใช้ filteredData ซึ่งเป็นข้อมูลที่แสดงอยู่ในตารางปัจจุบัน
-            filteredData.forEach(r => {
-                rows.push([r.id, r.area, r.red, r.green, r.black, r.food, r.datetime]);
-            });
+            const rows = [['หมายเลข', 'พื้นที่', 'ถุงแดง', 'ถุงเขียว', 'ถุงดำ', 'ถุงอาหาร', 'วันที่']];
+            filteredData.forEach(r => rows.push([r.id, r.area, r.red, r.green, r.black, r.food, r.datetime]));
             const csvContent = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' }); // เพิ่ม BOM สำหรับภาษาไทย
+            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `wastebags_export_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.download = `waste_export_${new Date().toISOString().slice(0, 10)}.csv`;
             a.click();
-            URL.revokeObjectURL(url);
         }
 
-        // ====== Init & Listeners ======
-        
         function setInitialFilterValues(now) {
-            const todayISO = now.toISOString().split('T')[0];
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1; 
-
-            document.getElementById('filterDay').value = todayISO;
-            document.getElementById('filterMonth').value = currentMonth;
-            document.getElementById('filterYearM').value = currentYear;
-            document.getElementById('filterYearY').value = currentYear;
-            document.getElementById('filterType').value = 'day'; // กำหนดให้กรองรายวันเป็นค่าเริ่มต้น
+            document.getElementById('filterDay').value = now.toISOString().split('T')[0];
+            document.getElementById('filterMonth').value = now.getMonth() + 1;
+            document.getElementById('filterYearM').value = now.getFullYear();
+            document.getElementById('filterYearY').value = now.getFullYear();
+            document.getElementById('filterType').value = 'day';
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            const now = new Date();
-            setInitialFilterValues(now);
-            
+            setInitialFilterValues(new Date());
             createCharts();
-            
-            // โหลดข้อมูลเริ่มต้นตามค่าเริ่มต้น (กรองรายวันของวันนี้)
             switchFilterControls();
-            handleApplyFilter(); 
-
-            // Listeners
+            handleApplyFilter();
             document.getElementById('filterType').addEventListener('change', switchFilterControls);
             document.getElementById('applyFilterBtn').addEventListener('click', handleApplyFilter);
-            
-            // Client-side listeners: กรองข้อมูลที่ถูกดึงมาแล้ว
             document.getElementById('searchInput').addEventListener('input', () => {
                 clearTimeout(window._searchT);
                 window._searchT = setTimeout(applyClientFilters, 200);
             });
             document.getElementById('bagFilter').addEventListener('change', applyClientFilters);
             document.getElementById('exportBtn').addEventListener('click', exportCSV);
-            
             document.getElementById('resetBtn').addEventListener('click', () => {
-                // 1. รีเซ็ตตัวกรอง Date/Time กลับไปที่ 'day' และ 'วันนี้'
-                setInitialFilterValues(new Date()); 
-                
-                // 2. รีเซ็ตตัวกรอง Client-side
+                setInitialFilterValues(new Date());
                 document.getElementById('searchInput').value = '';
                 document.getElementById('bagFilter').value = '';
-                
-                // 3. สลับการแสดงผล
                 switchFilterControls();
-                
-                // 4. เรียก API เพื่อโหลดข้อมูลของวันนี้ (ค่าเริ่มต้น) ใหม่
                 handleApplyFilter();
             });
         });
-        
-        function goBack() {
-            window.location.href = "https://ssi-building.github.io/WasteCheck/Dashboard.html";
-        }
+
+        function goBack() { window.location.href = "https://ssi-building.github.io/WasteCheck/Dashboard.html"; }
     </script>
 </body>
 </html>
