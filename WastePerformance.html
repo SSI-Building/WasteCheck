@@ -365,7 +365,15 @@
                     return result.data.map(row => ({
                         id: row[0], area: row[1], red: Number(row[2] || 0), green: Number(row[3] || 0),
                         black: Number(row[4] || 0), food: Number(row[5] || 0),
-                        datetime: row[6] ? new Date(row[6]).toISOString().split('T')[0] : ''
+                        datetime: row[6]
+                          ? new Date(row[6]).toLocaleString('th-TH', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })
+                          : ''
                     }));
                 }
                 return [];
