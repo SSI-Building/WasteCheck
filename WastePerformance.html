@@ -266,7 +266,7 @@
 
         function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
 
-        const LOCATION_PER_DAY = 34;
+        const LOCATION_PER_DAY = 33;
 
         function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
         function getDaysInYear(year) { return ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365; }
