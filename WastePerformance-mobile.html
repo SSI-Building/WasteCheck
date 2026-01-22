@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Waste Performance Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root{
+            --bg:#f6f8f9;
+            --card:#ffffff;
+            --accent:#0a6847;
+            --muted:#6b7280;
+        }
+        body{
+            margin:0;
+            font-family: "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+            background:var(--bg);
+            color:#111827;
+        }
+        .container{
+            width: 100%;
+            max-width:1200px;
+            margin:0 auto;
+            padding:12px;
+            box-sizing: border-box;
+        }
+        header{
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        header h1{
+            margin:0;
+            font-size:22px;
+            color:var(--accent);
+            text-align: center;
+        }
+        .controls{
+            display:flex;
+            flex-direction: column;
+            gap:10px;
+        }
+        .filter-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .controls select, .controls input {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .btn{
+            background:var(--accent);
+            color:white;
+            border:none;
+            padding:12px;
+            border-radius:8px;
+            cursor:pointer;
+            font-weight:600;
+            font-size: 14px;
+        }
+        
+        /* KPI Summary */
+        .kpi{
+            display:grid;
+            grid-template-columns: 1fr 1fr;
+            gap:10px;
+            margin-bottom:18px;
+        }
+        .card{
+            background:var(--card);
+            border-radius:10px;
+            padding:12px;
+            box-shadow:0 6px 18px rgba(10,10,10,0.04);
+        }
+        .kpi .card:last-child {
+            grid-column: span 2;
+        }
+        .card .title{font-size:13px;color:var(--muted);margin-bottom:4px;}
+        .card .value{font-size:20px;font-weight:700;color:#111827;}
+        .card .compare { font-size:12px; margin-top:4px; }
+
+        .up { color: #dc2626; font-weight: 600; } 
+        .down { color: #15803d; font-weight: 600; } 
+        .same { color: var(--muted); }
+
+        .grid-two{
+            display: flex;
+            flex-direction: column;
+            gap:16px;
+        }
+        .chart-wrap{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(10,10,10,0.04);}
+        canvas{width:100% !important;height:280px !important;}
+
+        /* ตาราง - เพิ่มความกว้างขั้นต่ำเพื่อให้รองรับคอลัมน์เวลา */
+        .table-container{
+            background:var(--card);
+            border-radius:10px;
+            padding:8px;
+            box-shadow:0 6px 18px rgba(10,10,10,0.04);
+            margin-top: 15px;
+        }
+        .scroll-area { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table{ width:100%; border-collapse:collapse; font-size:12px; min-width: 580px; } /* ขยาย min-width */
+        thead th{ text-align:left; padding:10px 8px; background:#f3f4f6; border-bottom:1px solid #e5e7eb; white-space: nowrap; }
+        tbody td{ padding:10px 8px; border-bottom:1px solid #eee; }
+        .time-col { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+        .search-box {
+            padding:12px;
+            border-radius:8px;
+            border:1px solid #ddd;
+            width: 100%;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        #loadingIndicator {
+            display: none;
+            text-align: center;
+            color: var(--accent);
+            font-weight: bold;
+            padding: 10px;
+        }
+
+        @media(min-width: 768px){
+            .kpi { grid-template-columns: repeat(5, 1fr); }
+            .kpi .card:last-child { grid-column: auto; }
+            header { flex-direction: row; justify-content: space-between; }
+            .controls { flex-direction: row; }
+            .grid-two { display: grid; grid-template-columns: 1fr 400px; }
+            table { font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Waste Performance</h1>
+            <div class="controls">
+                <div class="filter-row">
+                    <select id="filterType">
+                        <option value="day">กรองรายวัน</option>
+                        <option value="month">กรองรายเดือน</option>
+                        <option value="year">กรองรายปี</option>
+                    </select>
+                    
+                    <div id="dayControls">
+                        <input type="date" id="filterDay" />
+                    </div>
+                    
+                    <div id="monthControls" style="display:none; gap:5px; flex-direction: row;">
+                        <input type="number" id="filterMonth" placeholder="เดือน" min="1" max="12">
+                        <input type="number" id="filterYearM" placeholder="ปี">
+                    </div>
+
+                    <div id="yearControls" style="display:none;">
+                        <input type="number" id="filterYearY" placeholder="ปี">
+                    </div>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn" id="applyFilterBtn">กรองข้อมูล</button>
+                    <button class="btn" id="resetBtn" style="background:#6b7280;">รีเซ็ต</button>
+                    <button class="btn" id="exportBtn" style="background:#3498db;">CSV</button>
+                    <button class="btn" onclick="goBack()" style="background:#333;">กลับ</button>
+                </div>
+                <div id="loadingIndicator">กำลังโหลด...</div>
+            </div>
+        </header>
+
+        <section class="kpi">
+            <div class="card">
+                <div class="title">ถุงแดงรวม</div>
+                <div class="value" id="totalRed">0</div>
+                <div class="compare" id="compareRed"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงเขียวรวม</div>
+                <div class="value" id="totalGreen">0</div>
+                <div class="compare" id="compareGreen"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงดำรวม</div>
+                <div class="value" id="totalBlack">0</div>
+                <div class="compare" id="compareBlack"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงใส่เศษอาหารรวม</div>
+                <div class="value" id="totalFood">0</div>
+                <div class="compare" id="compareFood"></div>
+            </div>
+            <div class="card">
+                <div class="title">จำนวนจุดที่บันทึก</div>
+                <div class="value" id="totalLocations">0</div>
+                <div class="compare" id="compareLocations"></div>
+            </div>
+        </section>
+
+        <section class="grid-two">
+            <div class="chart-wrap">
+                <canvas id="barChart"></canvas>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="pieChart"></canvas>
+                <div id="bagSummary" style="font-size:13px; margin-top:10px; border-top:1px solid #eee; padding-top:10px;">-</div>
+            </div>
+        </section>
+
+        <div class="table-container">
+            <input class="search-box" id="searchInput" placeholder="ค้นหาชื่อพื้นที่..." />
+            <select id="bagFilter" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; margin-bottom:10px;">
+                <option value="">-- แสดงทุกประเภทถุง --</option>
+                <option value="red">ถุงแดง > 0</option>
+                <option value="green">ถุงเขียว > 0</option>
+                <option value="black">ถุงดำ > 0</option>
+                <option value="food">ถุงอาหาร > 0</option>
+            </select>
+            <div class="scroll-area">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>พื้นที่</th>
+                            <th>แดง</th>
+                            <th>เขียว</th>
+                            <th>ดำ</th>
+                            <th>อาหาร</th>
+                            <th>วันที่/เวลา</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div style="text-align:center; padding:10px; font-size:12px; color:var(--muted);">
+                แสดงข้อมูล: <span id="rowsCount">0</span> แถว
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzoDaY-EPmqPUlNf_TQEeOZ7IqbEgfsUZ6-8ViMOAXZXVsm5AhRvWUgb2hV8XzT7yozxQ/exec';
+        let currentData = []; let filteredData = []; let previousData = []; 
+
+        function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
+        const LOCATION_PER_DAY = 33;
+        function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+        function getDaysInYear(year) { return ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365; }
+
+        function getMaxLocations(filterType, params) {
+            if (filterType === 'day') return LOCATION_PER_DAY;
+            if (filterType === 'month') return LOCATION_PER_DAY * getDaysInMonth(Number(params.year), Number(params.month));
+            if (filterType === 'year') return LOCATION_PER_DAY * getDaysInYear(Number(params.year));
+            return LOCATION_PER_DAY;
+        }
+
+        function getTrendHtml(current, previous) {
+            if (previous === 0) return current > 0 ? `<span class="up">▲ New</span>` : `-`;
+            const diffPercent = Math.round(((current - previous) / previous) * 100);
+            if (diffPercent === 0) return `0%`;
+            const arrow = diffPercent > 0 ? '▲' : '▼';
+            const className = diffPercent > 0 ? 'up' : 'down';
+            return `<span class="${className}">${arrow} ${Math.abs(diffPercent)}%</span>`;
+        }
+
+        function renderBagSummary(totals, prevTotals) {
+            const totalAll = totals.red + totals.green + totals.black + totals.food;
+            const prevTotalAll = prevTotals.red + prevTotals.green + prevTotals.black + prevTotals.food;
+            const html = `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+                    <div>แดง: ${formatNumber(totals.red)} ${getTrendHtml(totals.red, prevTotals.red)}</div>
+                    <div>ดำ: ${formatNumber(totals.black)} ${getTrendHtml(totals.black, prevTotals.black)}</div>
+                    <div>เขียว: ${formatNumber(totals.green)} ${getTrendHtml(totals.green, prevTotals.green)}</div>
+                    <div>อาหาร: ${formatNumber(totals.food)} ${getTrendHtml(totals.food, prevTotals.food)}</div>
+                </div>
+                <div style="margin-top:10px; padding-top:8px; border-top:1px solid #eee; font-weight:700;">
+                    รวม: ${formatNumber(totalAll)} ใบ ${getTrendHtml(totalAll, prevTotalAll)}
+                </div>`;
+            document.getElementById('bagSummary').innerHTML = html;
+        }
+
+        function getPreviousPeriodParams(filterType, currentParams) {
+            if (filterType === 'day' && currentParams.day) {
+                let [y, m, d] = currentParams.day.split('-').map(Number);
+                let date = new Date(y, m - 1, d);
+                date.setDate(date.getDate() - 1);
+                if (date.getDay() === 0) date.setDate(date.getDate() - 1);
+                return { day: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` };
+            } 
+            else if (filterType === 'month') {
+                let m = parseInt(currentParams.month) - 1; let y = parseInt(currentParams.year);
+                if (m === 0) { m = 12; y -= 1; }
+                return { month: m.toString(), year: y.toString() };
+            }
+            else if (filterType === 'year') {
+                return { year: (parseInt(currentParams.year) - 1).toString() };
+            }
+            return null;
+        }
+
+        async function fetchSinglePeriod(filterType, params) {
+            const urlParams = new URLSearchParams();
+            urlParams.append('type', filterType);
+            if (filterType === 'day') {
+                const [y, m, d] = params.day.split('-');
+                urlParams.append('date', `${d}/${m}/${y}`);
+            } else if (filterType === 'month') {
+                urlParams.append('month', params.month); urlParams.append('year', params.year);
+            } else {
+                urlParams.append('year', params.year);
+            }
+            try {
+                const res = await fetch(`${API_URL}?${urlParams.toString()}`);
+                const result = await res.json();
+                return result.status === 'success' ? result.data.map(row => ({
+                    id: row[0], area: row[1], red: Number(row[2]||0), green: Number(row[3]||0),
+                    black: Number(row[4]||0), food: Number(row[5]||0), datetime: row[6]
+                })) : [];
+            } catch (e) { return []; }
+        }
+
+        async function fetchData(filterType, params) {
+            document.getElementById('loadingIndicator').style.display = 'block';
+            const prevParams = getPreviousPeriodParams(filterType, params);
+            const [curr, prev] = await Promise.all([
+                fetchSinglePeriod(filterType, params),
+                prevParams ? fetchSinglePeriod(filterType, prevParams) : Promise.resolve([])
+            ]);
+            currentData = curr; previousData = prev;
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        function renderComparison(elementId, current, previous, filterType, isLoc = false, maxV = null) {
+            const diff = current - previous;
+            const el = document.getElementById(elementId);
+            let timeLabel = filterType === 'day' ? 'เมื่อวาน' : (filterType === 'month' ? 'เดือนที่แล้ว' : 'ปีก่อน');
+            if (diff === 0) { el.innerHTML = `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`; return; }
+            let arrow = diff > 0 ? '▲' : '▼';
+            let sign = diff > 0 ? '+' : '';
+            let className = isLoc ? (diff > 0 ? 'down' : 'up') : (diff > 0 ? 'up' : 'down');
+            const diffPercent = maxV ? Math.round((Math.abs(diff) / maxV) * 100) : (previous > 0 ? Math.round((Math.abs(diff) / previous) * 100) : null);
+            const pText = diffPercent !== null ? ` (${sign}${diffPercent}%)` : '';
+            el.innerHTML = `<span class="${className}">${arrow} ${sign}${formatNumber(Math.abs(diff))}${pText}</span> เทียบกับ ${timeLabel}`;
+        }
+
+        function computeAndRender(data, previousData) {
+            const totals = data.reduce((acc, r) => {
+                acc.red += r.red; acc.green += r.green; acc.black += r.black; acc.food += r.food;
+                return acc;
+            }, { red: 0, green: 0, black: 0, food: 0, locations: data.length });
+
+            const prevTotals = previousData.reduce((acc, r) => {
+                acc.red += r.red; acc.green += r.green; acc.black += r.black; acc.food += r.food;
+                return acc;
+            }, { red: 0, green: 0, black: 0, food: 0, locations: previousData.length });
+
+            document.getElementById('totalRed').innerText = formatNumber(totals.red);
+            document.getElementById('totalGreen').innerText = formatNumber(totals.green);
+            document.getElementById('totalBlack').innerText = formatNumber(totals.black);
+            document.getElementById('totalFood').innerText = formatNumber(totals.food);
+
+            const filterType = document.getElementById('filterType').value;
+            const params = {
+                day: document.getElementById('filterDay').value,
+                month: document.getElementById('filterMonth').value,
+                year: (filterType === 'month') ? document.getElementById('filterYearM').value : document.getElementById('filterYearY').value
+            };
+            const maxL = getMaxLocations(filterType, params);
+            const locPercent = maxL ? Math.round((totals.locations / maxL) * 100) : 0;
+            document.getElementById('totalLocations').innerText = `${totals.locations} (${locPercent}%)`;
+
+            renderComparison('compareRed', totals.red, prevTotals.red, filterType);
+            renderComparison('compareGreen', totals.green, prevTotals.green, filterType);
+            renderComparison('compareBlack', totals.black, prevTotals.black, filterType);
+            renderComparison('compareFood', totals.food, prevTotals.food, filterType);
+            renderComparison('compareLocations', totals.locations, prevTotals.locations, filterType, true, maxL);
+
+            renderBagSummary(totals, prevTotals);
+
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = '';
+            data.forEach(r => {
+                const tr = document.createElement('tr');
+                // จัดรูปแบบวันที่เวลาให้สวยงาม
+                let dtStr = r.datetime ? new Date(r.datetime).toLocaleString('th-TH', { 
+                    day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' 
+                }) : '-';
+                
+                tr.innerHTML = `
+                    <td style="font-weight:600;">${r.area}</td>
+                    <td>${r.red}</td>
+                    <td>${r.green}</td>
+                    <td>${r.black}</td>
+                    <td>${r.food}</td>
+                    <td class="time-col">${dtStr}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('rowsCount').innerText = data.length;
+            updateCharts(data, totals);
+        }
+
+        let pieChart, barChart;
+        function createCharts() {
+            pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
+                type: 'pie',
+                data: { labels: ['แดง', 'เขียว', 'ดำ', 'อาหาร'], datasets: [{ data: [0,0,0,0], backgroundColor: ['#ef4444', '#10b981', '#111827', '#f59e0b'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+            barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels: [], datasets: [
+                    { label: 'แดง', data: [], backgroundColor: '#ef4444', stack: 's1' },
+                    { label: 'เขียว', data: [], backgroundColor: '#10b981', stack: 's1' },
+                    { label: 'ดำ', data: [], backgroundColor: '#111827', stack: 's1' },
+                    { label: 'อาหาร', data: [], backgroundColor: '#f59e0b', stack: 's1' }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+            });
+        }
+
+        function updateCharts(data, totals) {
+            pieChart.data.datasets[0].data = [totals.red, totals.green, totals.black, totals.food];
+            pieChart.update();
+            const areaCounts = data.reduce((acc, r) => {
+                if (!acc[r.area]) acc[r.area] = { red:0, green:0, black:0, food:0 };
+                acc[r.area].red += r.red; acc[r.area].green += r.green; acc[r.area].black += r.black; acc[r.area].food += r.food;
+                return acc;
+            }, {});
+            const labels = Object.keys(areaCounts).slice(0, 8);
+            barChart.data.labels = labels;
+            barChart.data.datasets[0].data = labels.map(l => areaCounts[l].red);
+            barChart.data.datasets[1].data = labels.map(l => areaCounts[l].green);
+            barChart.data.datasets[2].data = labels.map(l => areaCounts[l].black);
+            barChart.data.datasets[3].data = labels.map(l => areaCounts[l].food);
+            barChart.update();
+        }
+
+        function applyClientFilters() {
+            const s = document.getElementById('searchInput').value.toLowerCase();
+            const f = document.getElementById('bagFilter').value;
+            filteredData = currentData.filter(r => {
+                if (s && !r.area.toLowerCase().includes(s)) return false;
+                if (f && !(r[f] > 0)) return false;
+                return true;
+            });
+            computeAndRender(filteredData, previousData);
+        }
+
+        async function handleApplyFilter() {
+            const t = document.getElementById('filterType').value;
+            const params = {
+                day: document.getElementById('filterDay').value,
+                month: document.getElementById('filterMonth').value,
+                year: (t === 'month') ? document.getElementById('filterYearM').value : document.getElementById('filterYearY').value
+            };
+            await fetchData(t, params);
+            applyClientFilters();
+        }
+
+        function switchFilterControls() {
+            const t = document.getElementById('filterType').value;
+            document.getElementById('dayControls').style.display = t === 'day' ? 'block' : 'none';
+            document.getElementById('monthControls').style.display = t === 'month' ? 'flex' : 'none';
+            document.getElementById('yearControls').style.display = t === 'year' ? 'block' : 'none';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            document.getElementById('filterDay').value = now.toISOString().split('T')[0];
+            document.getElementById('filterMonth').value = now.getMonth() + 1;
+            document.getElementById('filterYearM').value = now.getFullYear();
+            document.getElementById('filterYearY').value = now.getFullYear();
+            createCharts(); switchFilterControls(); handleApplyFilter();
+            document.getElementById('filterType').addEventListener('change', switchFilterControls);
+            document.getElementById('applyFilterBtn').addEventListener('click', handleApplyFilter);
+            document.getElementById('searchInput').addEventListener('input', applyClientFilters);
+            document.getElementById('bagFilter').addEventListener('change', applyClientFilters);
+            document.getElementById('resetBtn').onclick = () => location.reload();
+        });
+
+        function goBack() { window.location.href = "https://ssi-building.github.io/WasteCheck/Dashboard-mobile.html"; }
+    </script>
+</body>
+</html>
