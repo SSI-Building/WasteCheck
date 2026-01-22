@@ -16,7 +16,7 @@
     .red-dot-marker { width:10px;height:10px;background-color:#FF0000;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
     .green-dot-marker { width:10px;height:10px;background-color:#00FF00;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
 
-    /* --- ปรับปรุงส่วนควบคุมด้านบน (Top Bar) --- */
+    /* --- ส่วนควบคุมด้านบน (Top Bar) --- */
     .top-controls {
         position: absolute; top: 10px; left: 10px; right: 10px;
         display: flex; gap: 8px; z-index: 50; pointer-events: none;
@@ -26,14 +26,7 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.2); pointer-events: auto;
         display: flex; align-items: center;
     }
-    #datePicker { border: none; font-size: 14px; outline: none; font-weight: bold; }
-
-    /* --- ข้อมูลแผนที่ (ขนาดเล็กลงสำหรับมือถือ) --- */
-    #info-panel {
-        position: absolute; top: 60px; left: 10px; z-index: 1;
-        background: rgba(255,255,255,0.7); padding: 4px 8px;
-        border-radius: 5px; font-size: 10px; pointer-events: none;
-    }
+    #datePicker { border: none; font-size: 14px; outline: none; font-weight: bold; background: transparent; }
 
     /* --- Floating Action Buttons (ปุ่มมุมขวาล่าง) --- */
     .fab-container {
@@ -73,19 +66,20 @@
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(255,255,255,0.98); z-index: 2000;
         display: none; padding: 20px; box-sizing: border-box;
+        overflow-y: auto;
     }
-    #add-location-form-container h3 { margin-top: 40px; }
+    #add-location-form-container h3 { margin-top: 40px; text-align: center; }
     .mobile-input {
         width: 100%; padding: 15px; margin-bottom: 15px;
-        border: 1px solid #ddd; border-radius: 10px; font-size: 16px;
+        border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box;
     }
     .btn-group { display: flex; gap: 10px; }
     .mobile-btn {
         flex: 1; padding: 15px; border-radius: 10px; border: none;
-        font-weight: bold; font-size: 16px;
+        font-weight: bold; font-size: 16px; cursor: pointer;
     }
 
-    /* --- Loading --- */
+    /* --- Loading Overlay --- */
     #loading-overlay {
         position:fixed; top:0; left:0; width:100%; height:100%;
         background:rgba(0,0,0,0.6); z-index:9999;
@@ -104,28 +98,22 @@
     </div>
 </div>
 
-<div id="info-panel">
-    <div id="bearing-info">Bearing: 0°</div>
-    <div id="zoom-info">Zoom: 0</div>
-    <div id="distance-info">พิกัดแกน</div>
-</div>
-
 <div class="fab-container">
-    <button class="fab fab-performance" onclick="location.href='https://ssi-building.github.io/WasteCheck/WastePerformance.html'"><i class="fas fa-chart-bar"></i></button>
-    <button class="fab fab-reset" id="reset-view-btn">⟳</button>
-    <button class="fab fab-add" id="open-add-btn"><i class="fas fa-map-pin"></i></button>
-    <button class="fab fab-table" id="toggle-table-btn"><i class="fas fa-table"></i></button>
+    <button class="fab fab-performance" title="แดชบอร์ด" onclick="location.href='https://ssi-building.github.io/WasteCheck/WastePerformance.html'"><i class="fas fa-chart-bar"></i></button>
+    <button class="fab fab-reset" id="reset-view-btn" title="รีเซ็ต">⟳</button>
+    <button class="fab fab-add" id="open-add-btn" title="ปักหมุด"><i class="fas fa-map-pin"></i></button>
+    <button class="fab fab-table" id="toggle-table-btn" title="ตารางข้อมูล"><i class="fas fa-table"></i></button>
 </div>
 
 <div id="data-table-container">
     <div id="window-header">
         <strong style="font-size:18px;">ตารางข้อมูลพื้นที่</strong>
-        <button id="close-table-btn" style="background:none; border:none; font-size:24px;">&times;</button>
+        <button id="close-table-btn" style="background:none; border:none; font-size:28px; padding: 0 10px;">&times;</button>
     </div>
     <div id="data-table-wrapper">
         <table id="data-table">
             <thead>
-                <tr><th>ID</th><th>พื้นที่</th></tr>
+                <tr><th style="background:#f9f9f9;">ID</th><th style="background:#f9f9f9;">พื้นที่</th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -135,9 +123,9 @@
 <div id="add-location-form-container">
     <h3>ทดสอบปักหมุด</h3>
     <form id="add-location-form">
-        <input type="text" id="new-name" class="mobile-input" placeholder="ชื่อพื้นที่" required>
-        <input type="number" step="0.000001" id="new-lat" class="mobile-input" placeholder="Latitude" required>
-        <input type="number" step="0.000001" id="new-lng" class="mobile-input" placeholder="Longitude" required>
+        <input type="text" id="new-name" class="mobile-input" placeholder="พื้นที่" required>
+        <input type="number" step="0.000001" id="new-lat" class="mobile-input" placeholder="ละติจูด (Lat)" required>
+        <input type="number" step="0.000001" id="new-lng" class="mobile-input" placeholder="ลองติจูด (Lng)" required>
         <select id="new-label-pos" class="mobile-input">
             <option value="top">Label: Top</option>
             <option value="right">Right</option>
@@ -157,13 +145,13 @@
 
 <div id="loading-overlay">
     <i class="fas fa-spinner fa-spin fa-3x"></i>
-    <div style="margin-top:10px;">กำลังโหลด...</div>
+    <div style="margin-top:10px; font-weight: bold;">กำลังโหลดข้อมูล...</div>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script>
-// --- ค่าเริ่มต้นคงเดิม ---
+// --- ค่าเริ่มต้น (คงเดิมตามต้นฉบับ) ---
 const targetLngLat = [99.535692, 11.231666];
 const desiredOffsetSouth = 0.0010;
 const desiredOffsetWest = -0.0010;
@@ -172,7 +160,8 @@ const initialZoom = 15.58;
 
 // ตั้งวันที่ DatePicker
 const datePicker = document.getElementById('datePicker');
-datePicker.valueAsDate = new Date();
+const today = new Date();
+datePicker.value = today.toISOString().split('T')[0];
 
 const map = new maplibregl.Map({
     container:'map',
@@ -183,9 +172,9 @@ const map = new maplibregl.Map({
     maxZoom:17.4
 });
 
-// --- Logic การควมคุม UI ---
+// --- UI Interaction Logic ---
 
-// เปิด-ปิด ตาราง
+// ควบคุมการเปิด-ปิด Bottom Sheet ตาราง
 document.getElementById('toggle-table-btn').onclick = () => {
     document.getElementById('data-table-container').style.display = 'flex';
 };
@@ -193,7 +182,7 @@ document.getElementById('close-table-btn').onclick = () => {
     document.getElementById('data-table-container').style.display = 'none';
 };
 
-// เปิด-ปิด ฟอร์มเพิ่มจุด
+// ควบคุมการเปิด-ปิด Modal ฟอร์ม
 document.getElementById('open-add-btn').onclick = () => {
     document.getElementById('add-location-form-container').style.display = 'block';
 };
@@ -201,7 +190,7 @@ document.getElementById('close-add-location-btn').onclick = () => {
     document.getElementById('add-location-form-container').style.display = 'none';
 };
 
-// รีเซ็ตมุมมอง
+// รีเซ็ตมุมมองแผนที่
 document.getElementById('reset-view-btn').onclick = () => {
     map.easeTo({
         center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],
@@ -210,13 +199,8 @@ document.getElementById('reset-view-btn').onclick = () => {
     setTimeout(() => location.reload(), 900);
 };
 
-// อัปเดตข้อมูลบนหน้าจอ
-map.on('move', () => {
-    document.getElementById('bearing-info').innerText = `Bearing: ${map.getBearing().toFixed(2)}°`;
-    document.getElementById('zoom-info').innerText = `Zoom: ${map.getZoom().toFixed(2)}`;
-});
+// --- Data Fetching Logic ---
 
-// ฟังก์ชันโหลดข้อมูล (Logic เดิมของคุณ)
 function showLoading() { document.getElementById('loading-overlay').style.display='flex'; }
 function hideLoading() { document.getElementById('loading-overlay').style.display='none'; }
 
@@ -225,6 +209,7 @@ function sendDateToScript(dateValue) {
     fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + dateValue)
         .then(res => res.json())
         .then(() => loadLocations())
+        .catch(err => console.error("Error:", err))
         .finally(() => hideLoading());
 }
 
@@ -237,7 +222,7 @@ async function loadLocations(){
         locations = await res.json();
         populateTable(); 
         addMarkers();
-    } catch(err) { console.error(err); }
+    } catch(err) { console.error("Error fetching locations:", err); }
 }
 
 function populateTable(){
@@ -245,9 +230,11 @@ function populateTable(){
     tableBody.innerHTML = locations.map(loc => `<tr><td>${loc.id}</td><td>${loc.name}</td></tr>`).join('');
 }
 
+// --- Marker & Label Logic (คงเดิมตามต้นฉบับ) ---
 const labelOffsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
 
 function addMarkers(){
+    // เคลียร์ Marker เก่าก่อนถ้าเป็นไปได้ (หรือพึ่งการรีโหลดหน้าแบบเดิม)
     locations.forEach(loc => {
         let colorClass = loc.status === "Complete" ? "green-dot-marker" : "red-dot-marker";
         const markerDiv = document.createElement('div'); markerDiv.className = colorClass;
@@ -263,12 +250,12 @@ function addMarkers(){
     });
 }
 
-// Preview Logic 
+// --- Preview Function ---
 let previewMarkers = [];
 document.getElementById('preview-btn').onclick = () => {
     const lat = parseFloat(document.getElementById('new-lat').value);
     const lng = parseFloat(document.getElementById('new-lng').value);
-    if(!lat || !lng) return alert("กรุณากรอกพิกัด");
+    if(isNaN(lat) || isNaN(lng)) return alert("กรุณากรอกพิกัดให้ถูกต้อง");
     
     previewMarkers.forEach(m => m.remove());
     const m1 = new maplibregl.Marker().setLngLat([lng, lat]).addTo(map);
@@ -280,6 +267,15 @@ document.getElementById('preview-btn').onclick = () => {
 
 document.getElementById('clear-preview-btn').onclick = () => {
     previewMarkers.forEach(m => m.remove());
+    previewMarkers = [];
+};
+
+// ฟอร์ม Submit
+document.getElementById('add-location-form').onsubmit = function(e){
+    e.preventDefault();
+    // Logic การบันทึกข้อมูลของคุณ
+    document.getElementById('add-location-form-container').style.display = 'none';
+    alert("บันทึกข้อมูลเรียบร้อย (จำลอง)");
 };
 
 map.on('load', () => {
