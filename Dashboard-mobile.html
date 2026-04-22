@@ -85,6 +85,17 @@
         background:rgba(0,0,0,0.6); z-index:9999;
         display:none; flex-direction:column; align-items:center; justify-content:center; color:white;
     }
+
+    .yellow-dot-marker {
+      width:10px;
+      height:10px;
+      background-color:#FFD700; /* เหลือง */
+      border-radius:100%;
+      border:1px solid white;
+      box-shadow:0 0 1px rgba(0,0,0,0.5);
+      pointer-events:auto;
+    }
+    
 </style>
 </head>
 <body>
@@ -236,7 +247,16 @@ const labelOffsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10
 function addMarkers(){
     // เคลียร์ Marker เก่าก่อนถ้าเป็นไปได้ (หรือพึ่งการรีโหลดหน้าแบบเดิม)
     locations.forEach(loc => {
-        let colorClass = loc.status === "Complete" ? "green-dot-marker" : "red-dot-marker";
+        let colorClass = "red-dot-marker"; // default = Critical
+
+        if (loc.status === "Complete") {
+            colorClass = "green-dot-marker";
+        } else if (loc.status === "Incomplete") {
+            colorClass = "yellow-dot-marker";
+        } else if (loc.status === "Critical") {
+            colorClass = "red-dot-marker";
+        }
+        
         const markerDiv = document.createElement('div'); markerDiv.className = colorClass;
         new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
 
