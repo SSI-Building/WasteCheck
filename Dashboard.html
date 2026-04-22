@@ -105,7 +105,16 @@ body { margin:0; padding:0; }
     background-color: #2980b9;
     transform: scale(1.02);
 }
-  
+
+.yellow-dot-marker {
+  width:10px;
+  height:10px;
+  background-color:#FFD700; /* เหลือง */
+  border-radius:100%;
+  border:1px solid white;
+  box-shadow:0 0 1px rgba(0,0,0,0.5);
+  pointer-events:auto;
+}
   
 </style>
 </head>
@@ -352,7 +361,16 @@ function addMarkers(){
     // แต่เพื่อความปลอดภัยในการโหลดซ้ำ อาจจะต้องพิจารณาเพิ่มการ clearMarkers() ในอนาคต
     
     locations.forEach(loc => {
-        let colorClass = loc.status === "Complete" ? "green-dot-marker" : "red-dot-marker";
+        let colorClass = "red-dot-marker"; // default = Critical
+
+        if (loc.status === "Complete") {
+            colorClass = "green-dot-marker";
+        } else if (loc.status === "Incomplete") {
+            colorClass = "yellow-dot-marker";
+        } else if (loc.status === "Critical") {
+            colorClass = "red-dot-marker";
+        }
+      
         const markerDiv = document.createElement('div'); markerDiv.className = colorClass;
         new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
 
