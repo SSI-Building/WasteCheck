@@ -266,18 +266,50 @@
 
         function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
 
+        //ฟังชั่นนับวัน
+        function getWorkingDaysInMonth(year, month) {
+        let count = 0;
+        let days = new Date(year, month, 0).getDate();
+        for (let d = 1; d <= days; d++) {
+            let date = new Date(year, month - 1, d);
+            if (date.getDay() !== 0) count++; // 0 = Sunday
+        }
+        return count;
+        }
+        function getWorkingDaysInYear(year) {
+            let count = 0;
+            let days = getDaysInYear(year);
+            for (let d = 1; d <= days; d++) {
+                let date = new Date(year, 0, d);
+                if (date.getDay() !== 0) count++;
+            }
+            return count;
+        }
+
+
         const LOCATION_PER_DAY = 36; // จำนวนจุดเก็บขยะ 100% มีกี่จุด..
 
         function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
         function getDaysInYear(year) { return ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365; }
 
-        function getMaxLocations(filterType, params) {
-            if (filterType === 'day') return LOCATION_PER_DAY;
-            if (filterType === 'month') return LOCATION_PER_DAY * getDaysInMonth(Number(params.year), Number(params.month));
-            if (filterType === 'year') return LOCATION_PER_DAY * getDaysInYear(Number(params.year));
-            return LOCATION_PER_DAY;
-        }
+            function getMaxLocations(filterType, params) {
+                if (filterType === 'day') return LOCATION_PER_DAY;
 
+                if (filterType === 'month') {
+                    return LOCATION_PER_DAY * getWorkingDaysInMonth(
+                        Number(params.year),
+                        Number(params.month)
+                    );
+                }
+
+                if (filterType === 'year') {
+                    return LOCATION_PER_DAY * getWorkingDaysInYear(
+                        Number(params.year)
+                    );
+                }
+
+                return LOCATION_PER_DAY;
+            }
         // ====== ฟังก์ชันใหม่สำหรับคำนวณ % การเพิ่มลดในสรุป ======
         function getTrendHtml(current, previous) {
             if (previous === 0) return current > 0 ? `<span class="up">▲ New</span>` : `<span class="same">-</span>`;
