@@ -252,6 +252,27 @@
         const API_URL = 'https://script.google.com/macros/s/AKfycbzoDaY-EPmqPUlNf_TQEeOZ7IqbEgfsUZ6-8ViMOAXZXVsm5AhRvWUgb2hV8XzT7yozxQ/exec';
         let currentData = []; let filteredData = []; let previousData = []; 
 
+        //ฟังชั่นนับวันเพื่อหักวันอาทิตย์
+        function getWorkingDaysInMonth(year, month) {
+        let count = 0;
+        let days = new Date(year, month, 0).getDate();
+        for (let d = 1; d <= days; d++) {
+            let date = new Date(year, month - 1, d);
+            if (date.getDay() !== 0) count++; // 0 = Sunday
+        }
+        return count;
+        }
+
+        function getWorkingDaysInYear(year) {
+            let count = 0;
+            let days = getDaysInYear(year);
+            for (let d = 1; d <= days; d++) {
+                let date = new Date(year, 0, d);
+                if (date.getDay() !== 0) count++;
+            }
+            return count;
+        }
+
         function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
         const LOCATION_PER_DAY = 36;  //จำนวนจุดเก็บขยะ 
         function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
@@ -259,8 +280,20 @@
 
         function getMaxLocations(filterType, params) {
             if (filterType === 'day') return LOCATION_PER_DAY;
-            if (filterType === 'month') return LOCATION_PER_DAY * getDaysInMonth(Number(params.year), Number(params.month));
-            if (filterType === 'year') return LOCATION_PER_DAY * getDaysInYear(Number(params.year));
+
+            if (filterType === 'month') {
+                return LOCATION_PER_DAY * getWorkingDaysInMonth(
+                    Number(params.year),
+                    Number(params.month)
+                );
+            }
+
+            if (filterType === 'year') {
+                return LOCATION_PER_DAY * getWorkingDaysInYear(
+                    Number(params.year)
+                );
+            }
+
             return LOCATION_PER_DAY;
         }
 
