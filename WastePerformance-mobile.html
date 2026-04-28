@@ -146,6 +146,42 @@
             .grid-two { display: grid; grid-template-columns: 1fr 400px; }
             table { font-size: 13px; }
         }
+
+        /* เพิ่มการตั้งค่า Animation */
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+#loadingIndicator {
+    display: none;
+    text-align: center;
+    color: var(--accent);
+    font-weight: bold;
+    padding: 15px;
+    /* เรียกใช้ animation ชื่อ blink ที่เราสร้างไว้ */
+    animation: blink 1.2s infinite ease-in-out; 
+    font-size: 18px;
+    background: rgba(255, 255, 255, 0);
+    border-radius: 8px;
+    margin-top: 10px;
+}
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(10, 104, 71, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--accent);
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
     </style>
 </head>
 <body>
@@ -176,8 +212,9 @@
                     <button class="btn" id="exportBtn" style="background:#3498db;">CSV</button>
                     <button class="btn" onclick="goBack()" style="background:#333;">กลับ</button>
                 </div>
-                <div id="loadingIndicator">กำลังโหลด...</div>
-            </div>
+                <div id="loadingIndicator">
+    <div class="spinner"></div> กำลังโหลดข้อมูล...
+</div>
         </header>
 
         <section class="kpi">
@@ -575,9 +612,45 @@
             document.getElementById('searchInput').addEventListener('input', applyClientFilters);
             document.getElementById('bagFilter').addEventListener('change', applyClientFilters);
             document.getElementById('resetBtn').onclick = () => location.reload();
+            document.getElementById('exportBtn').addEventListener('click', exportCSV);
         });
 
         function goBack() { window.location.href = "https://ssi-building.github.io/WasteCheck/Dashboard-mobile.html"; }
+
+        // ฟังก์ชันสำหรับดาวน์โหลด CSV
+    function exportCSV() {
+    if (filteredData.length === 0) {
+        alert("ไม่มีข้อมูลที่จะดาวน์โหลด");
+        return;
+    }
+
+    // สร้าง Header ของ CSV
+    let csvContent = "\uFEFF"; // ใส่ BOM เพื่อให้ Excel อ่านภาษาไทยออก
+    csvContent += "พื้นที่,แดง,เขียว,ดำ,อาหาร,วันที่/เวลา\n";
+
+    // วนลูปดึงข้อมูลจาก filteredData
+    filteredData.forEach(r => {
+        let dtStr = r.datetime ? new Date(r.datetime).toLocaleString('th-TH') : '-';
+        // ใช้ "" ครอบชื่อพื้นที่ เผื่อกรณีชื่อมีเครื่องหมายคอมม่า (,)
+        let row = `"${r.area}",${r.red},${r.green},${r.black},${r.food},"${dtStr}"`;
+        csvContent += row + "\n";
+    });
+
+    // สร้างไฟล์และสั่งดาวน์โหลด
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    // ตั้งชื่อไฟล์ตามประเภทการกรอง
+    const type = document.getElementById('filterType').value;
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Waste_Report_${type}_${new Date().getTime()}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    }
     </script>
 </body>
 </html>
