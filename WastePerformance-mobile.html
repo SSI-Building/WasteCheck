@@ -103,6 +103,22 @@
         .chart-wrap{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(10,10,10,0.04);}
         canvas{width:100% !important;height:280px !important;}
 
+
+        /* เพิ่มส่วนนี้เพื่อควบคุม Chart วงกลมโดยเฉพาะ */
+        .chart-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* จัดกลางแนวนอน */
+            justify-content: center;
+        }
+
+        .pie-container {
+            position: relative;
+            width: 100%;
+            max-width: 220px; /* ขนาดที่เหมาะสมบนมือถือ */
+            margin: 10px auto;
+        }
+
         /* ตาราง - เพิ่มความกว้างขั้นต่ำเพื่อให้รองรับคอลัมน์เวลา */
         .table-container{
             background:var(--card);
@@ -213,8 +229,12 @@
                 <canvas id="barChart"></canvas>
             </div>
             <div class="chart-wrap">
-                <canvas id="pieChart"></canvas>
-                <div id="bagSummary" style="font-size:13px; margin-top:10px; border-top:1px solid #eee; padding-top:10px;">-</div>
+                <div class="pie-container">
+                    <canvas id="pieChart"></canvas>
+                </div>
+                <div id="bagSummary" style="font-size:13px; margin-top:10px; border-top:1px solid #eee; padding-top:10px; width: 100%;">
+                    -
+                </div>
             </div>
         </section>
 
@@ -429,14 +449,10 @@
                     day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' 
                 }) : '-';
                 
-                tr.innerHTML = `
-                    <td style="font-weight:600;">${r.area}</td>
-                    <td>${r.red}</td>
-                    <td>${r.green}</td>
-                    <td>${r.black}</td>
-                    <td>${r.food}</td>
-                    <td class="time-col">${dtStr}</td>
-                `;
+            tr.innerHTML = `
+                <td style="font-weight:600;">${r.area}</td>
+                <td style="color:#ef4444; font-weight:700;">${r.red}</td>    <td style="color:#10b981; font-weight:700;">${r.green}</td>  <td style="color:#111827; font-weight:700;">${r.black}</td>  <td style="color:#f59e0b; font-weight:700;">${r.food}</td>   <td class="time-col">${dtStr}</td>
+            `;
                 tbody.appendChild(tr);
             });
             document.getElementById('rowsCount').innerText = data.length;
