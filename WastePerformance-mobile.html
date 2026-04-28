@@ -341,10 +341,10 @@
             const prevTotalAll = prevTotals.red + prevTotals.green + prevTotals.black + prevTotals.food;
             const html = `
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
-                    <div>แดง: ${formatNumber(totals.red)} ${getTrendHtml(totals.red, prevTotals.red)}</div>
-                    <div>ดำ: ${formatNumber(totals.black)} ${getTrendHtml(totals.black, prevTotals.black)}</div>
-                    <div>เขียว: ${formatNumber(totals.green)} ${getTrendHtml(totals.green, prevTotals.green)}</div>
-                    <div>อาหาร: ${formatNumber(totals.food)} ${getTrendHtml(totals.food, prevTotals.food)}</div>
+                    <div>ถุงแดง: ${formatNumber(totals.red)} ${getTrendHtml(totals.red, prevTotals.red)}</div>
+                    <div>ถุงดำ: ${formatNumber(totals.black)} ${getTrendHtml(totals.black, prevTotals.black)}</div>
+                    <div>ถุงเขียว: ${formatNumber(totals.green)} ${getTrendHtml(totals.green, prevTotals.green)}</div>
+                    <div>ถุงเศษอาหาร: ${formatNumber(totals.food)} ${getTrendHtml(totals.food, prevTotals.food)}</div>
                 </div>
                 <div style="margin-top:10px; padding-top:8px; border-top:1px solid #eee; font-weight:700;">
                     รวม: ${formatNumber(totalAll)} ใบ ${getTrendHtml(totalAll, prevTotalAll)}
