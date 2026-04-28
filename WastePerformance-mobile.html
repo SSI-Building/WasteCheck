@@ -71,7 +71,6 @@
             font-size: 14px;
         }
         
-        /* KPI Summary */
         .kpi{
             display:grid;
             grid-template-columns: 1fr 1fr;
@@ -100,26 +99,15 @@
             flex-direction: column;
             gap:16px;
         }
-        .chart-wrap{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(10,10,10,0.04);}
-        canvas{width:100% !important;height:280px !important;}
-
-
-        /* เพิ่มส่วนนี้เพื่อควบคุม Chart วงกลมโดยเฉพาะ */
-        .chart-wrap {
-            display: flex;
-            flex-direction: column;
-            align-items: center; /* จัดกลางแนวนอน */
-            justify-content: center;
-        }
-
+        .chart-wrap{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(10,10,10,0.04); overflow: hidden;}
+        
         .pie-container {
             position: relative;
             width: 100%;
-            max-width: 220px; /* ขนาดที่เหมาะสมบนมือถือ */
+            max-width: 220px;
             margin: 10px auto;
         }
 
-        /* ตาราง - เพิ่มความกว้างขั้นต่ำเพื่อให้รองรับคอลัมน์เวลา */
         .table-container{
             background:var(--card);
             border-radius:10px;
@@ -128,7 +116,7 @@
             margin-top: 15px;
         }
         .scroll-area { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        table{ width:100%; border-collapse:collapse; font-size:12px; min-width: 580px; } /* ขยาย min-width */
+        table{ width:100%; border-collapse:collapse; font-size:12px; min-width: 580px; }
         thead th{ text-align:left; padding:10px 8px; background:#f3f4f6; border-bottom:1px solid #e5e7eb; white-space: nowrap; }
         tbody td{ padding:10px 8px; border-bottom:1px solid #eee; }
         .time-col { color: var(--muted); font-size: 11px; white-space: nowrap; }
@@ -171,21 +159,17 @@
                         <option value="month">กรองรายเดือน</option>
                         <option value="year">กรองรายปี</option>
                     </select>
-                    
                     <div id="dayControls">
                         <input type="date" id="filterDay" />
                     </div>
-                    
                     <div id="monthControls" style="display:none; gap:5px; flex-direction: row;">
                         <input type="number" id="filterMonth" placeholder="เดือน" min="1" max="12">
                         <input type="number" id="filterYearM" placeholder="ปี">
                     </div>
-
                     <div id="yearControls" style="display:none;">
                         <input type="number" id="filterYearY" placeholder="ปี">
                     </div>
                 </div>
-                
                 <div class="btn-group">
                     <button class="btn" id="applyFilterBtn">กรองข้อมูล</button>
                     <button class="btn" id="resetBtn" style="background:#6b7280;">รีเซ็ต</button>
@@ -225,7 +209,7 @@
         </section>
 
         <section class="grid-two">
-            <div class="chart-wrap">
+            <div class="chart-wrap" id="barContainer" style="height: 350px;">
                 <canvas id="barChart"></canvas>
             </div>
             <div class="chart-wrap">
@@ -252,10 +236,10 @@
                     <thead>
                         <tr>
                             <th>พื้นที่</th>
-                            <th>แดง</th>
-                            <th>เขียว</th>
-                            <th>ดำ</th>
-                            <th>อาหาร</th>
+                            <th style="color:#ef4444;">แดง</th>
+                            <th style="color:#10b981;">เขียว</th>
+                            <th style="color:#111827;">ดำ</th>
+                            <th style="color:#f59e0b;">อาหาร</th>
                             <th>วันที่/เวลา</th>
                         </tr>
                     </thead>
@@ -270,22 +254,25 @@
 
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbzoDaY-EPmqPUlNf_TQEeOZ7IqbEgfsUZ6-8ViMOAXZXVsm5AhRvWUgb2hV8XzT7yozxQ/exec';
-        let currentData = []; let filteredData = []; let previousData = []; 
+        let currentData = []; 
+        let filteredData = []; 
+        let previousData = []; 
+        let currentFullLabels = [];
+        let pieChart, barChart;
 
-        //ฟังชั่นนับวันเพื่อหักวันอาทิตย์
         function getWorkingDaysInMonth(year, month) {
-        let count = 0;
-        let days = new Date(year, month, 0).getDate();
-        for (let d = 1; d <= days; d++) {
-            let date = new Date(year, month - 1, d);
-            if (date.getDay() !== 0) count++; // 0 = Sunday
-        }
-        return count;
+            let count = 0;
+            let days = new Date(year, month, 0).getDate();
+            for (let d = 1; d <= days; d++) {
+                let date = new Date(year, month - 1, d);
+                if (date.getDay() !== 0) count++;
+            }
+            return count;
         }
 
         function getWorkingDaysInYear(year) {
             let count = 0;
-            let days = getDaysInYear(year);
+            let days = ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365;
             for (let d = 1; d <= days; d++) {
                 let date = new Date(year, 0, d);
                 if (date.getDay() !== 0) count++;
@@ -294,26 +281,12 @@
         }
 
         function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
-        const LOCATION_PER_DAY = 35;  //จำนวนจุดเก็บขยะ 
-        function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
-        function getDaysInYear(year) { return ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365; }
+        const LOCATION_PER_DAY = 35;
 
         function getMaxLocations(filterType, params) {
             if (filterType === 'day') return LOCATION_PER_DAY;
-
-            if (filterType === 'month') {
-                return LOCATION_PER_DAY * getWorkingDaysInMonth(
-                    Number(params.year),
-                    Number(params.month)
-                );
-            }
-
-            if (filterType === 'year') {
-                return LOCATION_PER_DAY * getWorkingDaysInYear(
-                    Number(params.year)
-                );
-            }
-
+            if (filterType === 'month') return LOCATION_PER_DAY * getWorkingDaysInMonth(Number(params.year), Number(params.month));
+            if (filterType === 'year') return LOCATION_PER_DAY * getWorkingDaysInYear(Number(params.year));
             return LOCATION_PER_DAY;
         }
 
@@ -444,54 +417,116 @@
             tbody.innerHTML = '';
             data.forEach(r => {
                 const tr = document.createElement('tr');
-                // จัดรูปแบบวันที่เวลาให้สวยงาม
                 let dtStr = r.datetime ? new Date(r.datetime).toLocaleString('th-TH', { 
                     day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' 
                 }) : '-';
                 
-            tr.innerHTML = `
-                <td style="font-weight:600;">${r.area}</td>
-                <td style="color:#ef4444; font-weight:700;">${r.red}</td>    <td style="color:#10b981; font-weight:700;">${r.green}</td>  <td style="color:#111827; font-weight:700;">${r.black}</td>  <td style="color:#f59e0b; font-weight:700;">${r.food}</td>   <td class="time-col">${dtStr}</td>
-            `;
+                tr.innerHTML = `
+                    <td style="font-weight:600;">${r.area}</td>
+                    <td style="color:#ef4444; font-weight:700;">${r.red}</td>
+                    <td style="color:#10b981; font-weight:700;">${r.green}</td>
+                    <td style="color:#111827; font-weight:700;">${r.black}</td>
+                    <td style="color:#f59e0b; font-weight:700;">${r.food}</td>
+                    <td class="time-col">${dtStr}</td>
+                `;
                 tbody.appendChild(tr);
             });
             document.getElementById('rowsCount').innerText = data.length;
             updateCharts(data, totals);
         }
 
-        let pieChart, barChart;
         function createCharts() {
-            pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
-                type: 'pie',
-                data: { labels: ['แดง', 'เขียว', 'ดำ', 'อาหาร'], datasets: [{ data: [0,0,0,0], backgroundColor: ['#ef4444', '#10b981', '#111827', '#f59e0b'] }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
+            // สร้าง Bar Chart แนวนอน
             barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
                 type: 'bar',
-                data: { labels: [], datasets: [
-                    { label: 'แดง', data: [], backgroundColor: '#ef4444', stack: 's1' },
-                    { label: 'เขียว', data: [], backgroundColor: '#10b981', stack: 's1' },
-                    { label: 'ดำ', data: [], backgroundColor: '#111827', stack: 's1' },
-                    { label: 'อาหาร', data: [], backgroundColor: '#f59e0b', stack: 's1' }
-                ]},
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+                data: { 
+                    labels: [], 
+                    datasets: [
+                        { label: 'แดง', data: [], backgroundColor: '#ef4444', stack: 's1' },
+                        { label: 'เขียว', data: [], backgroundColor: '#10b981', stack: 's1' },
+                        { label: 'ดำ', data: [], backgroundColor: '#111827', stack: 's1' },
+                        { label: 'อาหาร', data: [], backgroundColor: '#f59e0b', stack: 's1' }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { 
+                            stacked: true,
+                            ticks: { font: { size: 11 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            callbacks: {
+                                title: (context) => currentFullLabels[context[0].dataIndex]
+                            }
+                        }
+                    }
+                }
+            });
+
+            // สร้าง Pie Chart
+            pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['แดง', 'เขียว', 'ดำ', 'อาหาร'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#ef4444', '#10b981', '#111827', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
             });
         }
 
         function updateCharts(data, totals) {
+            // อัปเดตกราฟวงกลม
             pieChart.data.datasets[0].data = [totals.red, totals.green, totals.black, totals.food];
             pieChart.update();
+
+            // ประมวลผลข้อมูลแยกตามพื้นที่
             const areaCounts = data.reduce((acc, r) => {
                 if (!acc[r.area]) acc[r.area] = { red:0, green:0, black:0, food:0 };
-                acc[r.area].red += r.red; acc[r.area].green += r.green; acc[r.area].black += r.black; acc[r.area].food += r.food;
+                acc[r.area].red += r.red; acc[r.area].green += r.green; 
+                acc[r.area].black += r.black; acc[r.area].food += r.food;
                 return acc;
             }, {});
-            const labels = Object.keys(areaCounts).slice(0, 8);
-            barChart.data.labels = labels;
-            barChart.data.datasets[0].data = labels.map(l => areaCounts[l].red);
-            barChart.data.datasets[1].data = labels.map(l => areaCounts[l].green);
-            barChart.data.datasets[2].data = labels.map(l => areaCounts[l].black);
-            barChart.data.datasets[3].data = labels.map(l => areaCounts[l].food);
+
+            // เรียงลำดับพื้นที่ที่มีขยะรวมสูงสุด 10 อันดับแรก
+            const sortedAreas = Object.keys(areaCounts).sort((a, b) => {
+                const totalA = areaCounts[a].red + areaCounts[a].green + areaCounts[a].black + areaCounts[a].food;
+                const totalB = areaCounts[b].red + areaCounts[b].green + areaCounts[b].black + areaCounts[b].food;
+                return totalB - totalA;
+            }).slice(0, 12);
+
+            currentFullLabels = sortedAreas;
+
+            // ย่อชื่อสำหรับแสดงผลบนแกน Y
+            const shortLabels = currentFullLabels.map(label => {
+                return label.length > 12 ? label.substring(0, 12) + '...' : label;
+            });
+
+            barChart.data.labels = shortLabels;
+            barChart.data.datasets[0].data = currentFullLabels.map(l => areaCounts[l].red);
+            barChart.data.datasets[1].data = currentFullLabels.map(l => areaCounts[l].green);
+            barChart.data.datasets[2].data = currentFullLabels.map(l => areaCounts[l].black);
+            barChart.data.datasets[3].data = currentFullLabels.map(l => areaCounts[l].food);
+            
+            // ปรับความสูง Container ของกราฟแท่ง
+            const dynamicHeight = Math.max(300, currentFullLabels.length * 35);
+            document.getElementById('barContainer').style.height = dynamicHeight + 'px';
+            
             barChart.update();
         }
 
@@ -530,7 +565,11 @@
             document.getElementById('filterMonth').value = now.getMonth() + 1;
             document.getElementById('filterYearM').value = now.getFullYear();
             document.getElementById('filterYearY').value = now.getFullYear();
-            createCharts(); switchFilterControls(); handleApplyFilter();
+            
+            createCharts(); 
+            switchFilterControls(); 
+            handleApplyFilter();
+
             document.getElementById('filterType').addEventListener('change', switchFilterControls);
             document.getElementById('applyFilterBtn').addEventListener('click', handleApplyFilter);
             document.getElementById('searchInput').addEventListener('input', applyClientFilters);
