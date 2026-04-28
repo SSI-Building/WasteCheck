@@ -3,21 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Map-WasteCheck(Mobile)</title>
+<title>Map-WasteCheck (Mobile UI - Auto Hide Buttons)</title>
 <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 <style>
-  
+    /* --- พื้นฐาน --- */
     body { margin:0; padding:0; font-family: sans-serif; overflow: hidden; }
     #map { position:absolute; top:0; bottom:0; width:100%; }
 
- 
+    /* --- [หมุด & Label แบบเดิม] --- */
     .custom-text-label { background-color:#fff;color:#333;padding:0px 6px;border-radius:5px;font-size:12px;font-weight:bold;box-shadow:0 1px 4px rgba(0,0,0,0.3);white-space:nowrap;pointer-events:none;margin:0;}
     .red-dot-marker { width:10px;height:10px;background-color:#FF0000;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
     .green-dot-marker { width:10px;height:10px;background-color:#00FF00;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
     .yellow-dot-marker { width:10px;height:10px;background-color:#FFD700;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
 
-    
+    /* --- ส่วนควบคุมด้านบน --- */
     .top-controls {
         position: absolute; top: 12px; left: 12px; right: 12px;
         display: flex; gap: 8px; z-index: 50; pointer-events: none;
@@ -29,10 +29,16 @@
     }
     #datePicker { border: none; font-size: 14px; outline: none; font-weight: bold; background: transparent; color: #333; }
 
-   
+    /* --- Floating Action Buttons (มี Transition สำหรับการซ่อน) --- */
     .fab-container {
         position: absolute; bottom: 30px; right: 15px;
         display: flex; flex-direction: column; gap: 12px; z-index: 100;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .fab-hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(100px); /* เลื่อนออกด้านข้างเพื่อความสวยงาม */
     }
     .fab {
         width: 56px; height: 56px; border-radius: 50%;
@@ -42,37 +48,40 @@
         cursor: pointer; transition: transform 0.1s ease;
     }
     .fab:active { transform: scale(0.9); }
-    
-    /* แก้ไขสีปุ่มตารางข้อมูลให้เด่นชัด (สีน้ำเงิน Dodger Blue) */
-    .fab-table { background-color: #1e90ff; color: white; }
-    
+    .fab-table { background-color: #1e90ff; }
     .fab-reset { background-color: #fff; color: #333; }
-    .fab-performance { background-color: #9b59b6; } /* เปลี่ยนเป็นสีม่วงให้ดูแตกต่าง */
+    .fab-performance { background-color: #9b59b6; }
 
     /* --- ตารางข้อมูล (Bottom Sheet) --- */
     #data-table-container {
         position: fixed; bottom: 0; left: 0; right: 0;
         background: white; border-top-left-radius: 20px; border-top-right-radius: 20px;
         box-shadow: 0 -5px 25px rgba(0,0,0,0.2); z-index: 1000;
-        display: none; flex-direction: column; max-height: 70vh;
-        animation: slideUp 0.3s ease-out;
+        display: none; flex-direction: column; 
+        height: 50vh; /* เริ่มที่ครึ่งจอ */
+        transition: height 0.1s ease-out;
     }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .drag-handle {
+        width: 100%; height: 25px; 
+        display: flex; justify-content: center; align-items: center;
+        cursor: grab; touch-action: none;
+    }
+    .drag-line { width: 40px; height: 5px; background: #ccc; border-radius: 10px; }
 
     #window-header {
-        padding: 15px 20px; border-bottom: 1px solid #eee;
+        padding: 5px 20px 10px; border-bottom: 1px solid #eee;
         display: flex; justify-content: space-between; align-items: center;
     }
-    #data-table-wrapper { overflow-y: auto; padding: 10px; flex: 1; }
+    #data-table-wrapper { overflow-y: auto; padding: 10px; flex: 1; -webkit-overflow-scrolling: touch; }
     #data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     #data-table th, #data-table td { padding: 14px 10px; border-bottom: 1px solid #f5f5f5; text-align: left; }
-    #data-table th { background: #fafafa; color: #666; font-weight: 600; }
+    #data-table th { background: #fafafa; position: sticky; top: 0; }
 
     /* --- Loading Overlay --- */
     #loading-overlay {
         position:fixed; top:0; left:0; width:100%; height:100%;
         background:rgba(255,255,255,0.8); z-index:9999;
-        display:none; flex-direction:column; align-items:center; justify-content:center; color:#333;
+        display:none; flex-direction:column; align-items:center; justify-content:center;
     }
 </style>
 </head>
@@ -87,16 +96,19 @@
     </div>
 </div>
 
-<div class="fab-container">
+<div class="fab-container" id="fab-box">
     <button class="fab fab-performance" title="แดชบอร์ด" onclick="location.href='https://ssi-building.github.io/WasteCheck/WastePerformance-mobile.html'"><i class="fas fa-chart-bar"></i></button>
     <button class="fab fab-reset" id="reset-view-btn" title="รีเซ็ต">⟳</button>
     <button class="fab fab-table" id="toggle-table-btn" title="ตารางข้อมูล"><i class="fas fa-table"></i></button>
 </div>
 
 <div id="data-table-container">
+    <div class="drag-handle" id="drag-zone">
+        <div class="drag-line"></div>
+    </div>
     <div id="window-header">
         <strong style="font-size:18px;">ตารางข้อมูลพื้นที่</strong>
-        <button id="close-table-btn" style="background:#eee; border:none; width:30px; height:30px; border-radius:50%; font-size:20px;">&times;</button>
+        <button id="close-table-btn" style="background:#eee; border:none; width:35px; height:35px; border-radius:50%; font-size:20px;">&times;</button>
     </div>
     <div id="data-table-wrapper">
         <table id="data-table">
@@ -109,18 +121,16 @@
 </div>
 
 <div id="loading-overlay">
-    <i class="fas fa-circle-notch fa-spin fa-3x" style="color: #1e90ff;"></i>
+    <i class="fas fa-circle-notch fa-spin fa-3x" style="color:#1e90ff;"></i>
     <div style="margin-top:10px; font-weight: bold;">กำลังโหลดข้อมูล...</div>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script>
-// --- ค่าเริ่มต้น (คงเดิม) ---
+// --- การตั้งค่าพื้นฐานเหมือนเดิม ---
 const targetLngLat = [99.535692, 11.231666];
-const desiredOffsetSouth = 0.0010;
-const desiredOffsetWest = -0.0010;
-const initialBearing = -45.6;
 const initialZoom = 15.58;
+const initialBearing = -45.6;
 
 const datePicker = document.getElementById('datePicker');
 datePicker.value = new Date().toISOString().split('T')[0];
@@ -128,86 +138,101 @@ datePicker.value = new Date().toISOString().split('T')[0];
 const map = new maplibregl.Map({
     container:'map',
     style:{version:8,sources:{satellite:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256}},layers:[{id:'satellite',type:'raster',source:'satellite'}]},
-    center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],
+    center: [targetLngLat[0] + 0.0010, targetLngLat[1] - 0.0010],
     zoom:initialZoom,
-    bearing:initialBearing,
-    maxZoom:17.4
+    bearing:initialBearing
 });
 
-// UI Interaction
+// --- UI Logic: เปิด/ปิดตาราง และ ซ่อน/แสดงปุ่ม ---
+const sheet = document.getElementById('data-table-container');
+const fabBox = document.getElementById('fab-box');
+const dragZone = document.getElementById('drag-zone');
+
 document.getElementById('toggle-table-btn').onclick = () => {
-    document.getElementById('data-table-container').style.display = 'flex';
+    sheet.style.display = 'flex';
+    sheet.style.height = '50vh';
+    fabBox.classList.add('fab-hidden'); // ซ่อนปุ่มทั้งหมดเมื่อเปิดตาราง
 };
+
 document.getElementById('close-table-btn').onclick = () => {
-    document.getElementById('data-table-container').style.display = 'none';
+    sheet.style.display = 'none';
+    fabBox.classList.remove('fab-hidden'); // แสดงปุ่มกลับมาเมื่อปิดตาราง
 };
 
-document.getElementById('reset-view-btn').onclick = () => {
-    map.easeTo({
-        center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],
-        zoom:initialZoom, bearing:initialBearing, pitch:0, duration:800
-    });
-    setTimeout(() => location.reload(), 900);
+// --- Resizable Logic (ยืดหดตาราง) ---
+let isDragging = false;
+let startY, startHeight;
+
+const onDragStart = (e) => {
+    isDragging = true;
+    startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+    startHeight = sheet.offsetHeight;
 };
 
+const onDrag = (e) => {
+    if (!isDragging) return;
+    const currentY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+    const deltaY = startY - currentY;
+    const newHeight = startHeight + deltaY;
+    
+    if (newHeight > 150 && newHeight < window.innerHeight * 0.9) {
+        sheet.style.height = `${newHeight}px`;
+    }
+};
+
+const onDragEnd = () => { isDragging = false; };
+
+dragZone.addEventListener('mousedown', onDragStart);
+window.addEventListener('mousemove', onDrag);
+window.addEventListener('mouseup', onDragEnd);
+dragZone.addEventListener('touchstart', onDragStart);
+window.addEventListener('touchmove', onDrag);
+window.addEventListener('touchend', onDragEnd);
+
+// --- การโหลดข้อมูลและแสดง Marker ---
 function showLoading() { document.getElementById('loading-overlay').style.display='flex'; }
 function hideLoading() { document.getElementById('loading-overlay').style.display='none'; }
 
-function sendDateToScript(dateValue) {
-    showLoading();
-    fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + dateValue)
-        .then(res => res.json())
-        .then(() => loadLocations())
-        .catch(err => console.error("Error:", err))
-        .finally(() => hideLoading());
-}
+document.getElementById('reset-view-btn').onclick = () => {
+    map.easeTo({ center: [targetLngLat[0] + 0.0010, targetLngLat[1] - 0.0010], zoom:initialZoom, bearing:initialBearing, duration:800 });
+    setTimeout(() => location.reload(), 900);
+};
 
-datePicker.onchange = () => sendDateToScript(datePicker.value);
-
-let locations = [];
 async function loadLocations(){
     try {
         const res = await fetch('https://script.google.com/macros/s/AKfycbzdYdBwnBhdixvyp4sjTwcSjSGUUM0TCXCVmABjt58A--TUOplaeXztj5yCp0Kt_6shAw/exec');
-        locations = await res.json();
-        populateTable(); 
-        addMarkers();
-    } catch(err) { console.error("Error fetching locations:", err); }
-}
-
-function populateTable(){
-    const tableBody = document.querySelector('#data-table tbody');
-    tableBody.innerHTML = locations.map(loc => `<tr><td>${loc.id}</td><td>${loc.name}</td></tr>`).join('');
-}
-
-// --- [Marker & Label Logic แบบเดิม] ---
-const labelOffsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
-
-function addMarkers(){
-    locations.forEach(loc => {
-        let colorClass = "red-dot-marker"; 
-        if (loc.status === "Complete") colorClass = "green-dot-marker";
-        else if (loc.status === "Incomplete") colorClass = "yellow-dot-marker";
-        else if (loc.status === "Critical") colorClass = "red-dot-marker";
+        const locations = await res.json();
         
-        const markerDiv = document.createElement('div'); 
-        markerDiv.className = colorClass;
-        new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
+        const tableBody = document.querySelector('#data-table tbody');
+        tableBody.innerHTML = locations.map(loc => `<tr><td>${loc.id}</td><td>${loc.name}</td></tr>`).join('');
 
-        const labelDiv = document.createElement('div'); 
-        labelDiv.className='custom-text-label'; 
-        labelDiv.innerText = loc.id;
-        const pos = loc.labelPos?.toLowerCase();
-        const offset = labelOffsetMap[pos] || labelOffsetMap.top;
-        new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:offset})
-            .setLngLat([loc.lng, loc.lat])
-            .setPopup(new maplibregl.Popup({offset:25}).setText(loc.name))
-            .addTo(map);
-    });
+        locations.forEach(loc => {
+            let colorClass = "red-dot-marker"; 
+            if (loc.status === "Complete") colorClass = "green-dot-marker";
+            else if (loc.status === "Incomplete") colorClass = "yellow-dot-marker";
+            
+            const markerDiv = document.createElement('div'); 
+            markerDiv.className = colorClass;
+            new maplibregl.Marker({element: markerDiv}).setLngLat([loc.lng, loc.lat]).addTo(map);
+
+            const labelDiv = document.createElement('div'); 
+            labelDiv.className='custom-text-label'; 
+            labelDiv.innerText = loc.id;
+            new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:[0, -10]})
+                .setLngLat([loc.lng, loc.lat])
+                .setPopup(new maplibregl.Popup({offset:25}).setText(loc.name))
+                .addTo(map);
+        });
+    } catch(err) { console.error(err); }
 }
 
-map.on('load', () => {
-    sendDateToScript(datePicker.value);
-});
+datePicker.onchange = () => {
+    showLoading();
+    fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + datePicker.value)
+    .then(() => location.reload());
+};
+
+map.on('load', loadLocations);
 </script>
 </body>
 </html>
