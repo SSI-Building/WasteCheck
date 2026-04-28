@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Map-WasteCheck (Mobile UI - Resizable Fixed)</title>
+<title>Map-WasteCheck(Mobile)</title>
 <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 <style>
@@ -11,7 +11,7 @@
     body { margin:0; padding:0; font-family: sans-serif; overflow: hidden; background: #f0f0f0; }
     #map { position:absolute; top:0; bottom:0; width:100%; }
 
-    /* --- Marker & Label (แบบเดิม) --- */
+    /* --- [Marker & Label - แบบต้นฉบับเป๊ะ] --- */
     .custom-text-label { background-color:#fff;color:#333;padding:0px 6px;border-radius:5px;font-size:12px;font-weight:bold;box-shadow:0 1px 4px rgba(0,0,0,0.3);white-space:nowrap;pointer-events:none;margin:0;}
     .red-dot-marker { width:10px;height:10px;background-color:#FF0000;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
     .green-dot-marker { width:10px;height:10px;background-color:#00FF00;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
@@ -30,7 +30,7 @@
     }
     #datePicker { border: none; font-size: 14px; outline: none; font-weight: bold; background: transparent; color: #333; }
 
-    /* --- Floating Action Buttons --- */
+    /* --- Floating Action Buttons (ซ่อนได้) --- */
     .fab-container {
         position: absolute; bottom: 30px; right: 15px;
         display: flex; flex-direction: column; gap: 12px; z-index: 100;
@@ -42,8 +42,9 @@
         border: none; color: white; font-size: 20px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         display: flex; align-items: center; justify-content: center;
-        cursor: pointer;
+        cursor: pointer; transition: transform 0.1s;
     }
+    .fab:active { transform: scale(0.9); }
     .fab-table { background: linear-gradient(135deg, #1e90ff, #0077e6); }
     .fab-reset { background: #fff; color: #333; }
     .fab-performance { background: #9b59b6; }
@@ -54,14 +55,13 @@
         background: white; border-top-left-radius: 25px; border-top-right-radius: 25px;
         box-shadow: 0 -8px 30px rgba(0,0,0,0.2); z-index: 1000;
         display: none; flex-direction: column; 
-        height: 50vh; /* เริ่มต้น 50% ของหน้าจอ */
-        touch-action: none; /* ป้องกัน Browser สับสนเวลาลาก */
+        height: 50vh; 
+        touch-action: none;
     }
     .drag-handle {
         width: 100%; height: 35px; 
         display: flex; justify-content: center; align-items: center;
-        cursor: ns-resize; /* สัญลักษณ์ยืดหด */
-        background: transparent;
+        cursor: ns-resize;
     }
     .drag-line { width: 45px; height: 5px; background: #e0e0e0; border-radius: 10px; }
 
@@ -97,9 +97,9 @@
 </div>
 
 <div class="fab-container" id="fab-box">
-    <button class="fab fab-performance" onclick="location.href='https://ssi-building.github.io/WasteCheck/WastePerformance-mobile.html'"><i class="fas fa-chart-line"></i></button>
-    <button class="fab fab-reset" id="reset-view-btn">⟳</button>
-    <button class="fab fab-table" id="toggle-table-btn"><i class="fas fa-list-ul"></i></button>
+    <button class="fab fab-performance" title="แดชบอร์ด" onclick="location.href='https://ssi-building.github.io/WasteCheck/WastePerformance-mobile.html'"><i class="fas fa-chart-line"></i></button>
+    <button class="fab fab-reset" id="reset-view-btn" title="รีเซ็ต">⟳</button>
+    <button class="fab fab-table" id="toggle-table-btn" title="ตารางข้อมูล"><i class="fas fa-list-ul"></i></button>
 </div>
 
 <div id="data-table-container">
@@ -108,7 +108,7 @@
     </div>
     <div id="window-header">
         <strong style="font-size:18px;">ข้อมูลพื้นที่</strong>
-        <button id="close-table-btn" style="background:#f5f5f5; border:none; width:35px; height:35px; border-radius:50%; font-size:22px;">&times;</button>
+        <button id="close-table-btn" style="background:#f5f5f5; border:none; width:35px; height:35px; border-radius:50%; font-size:22px; color:#999;">&times;</button>
     </div>
     <div id="data-table-wrapper">
         <table id="data-table">
@@ -127,9 +127,12 @@
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script>
+// --- ค่าเริ่มต้นต้นฉบับ ---
 const targetLngLat = [99.535692, 11.231666];
-const initialZoom = 15.58;
+const desiredOffsetSouth = 0.0010;
+const desiredOffsetWest = -0.0010;
 const initialBearing = -45.6;
+const initialZoom = 15.58;
 
 const datePicker = document.getElementById('datePicker');
 datePicker.value = new Date().toISOString().split('T')[0];
@@ -137,51 +140,32 @@ datePicker.value = new Date().toISOString().split('T')[0];
 const map = new maplibregl.Map({
     container:'map',
     style:{version:8,sources:{satellite:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256}},layers:[{id:'satellite',type:'raster',source:'satellite'}]},
-    center: [targetLngLat[0] + 0.0010, targetLngLat[1] - 0.0010],
+    center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],
     zoom:initialZoom,
-    bearing:initialBearing
+    bearing:initialBearing,
+    maxZoom:17.4
 });
 
 const sheet = document.getElementById('data-table-container');
 const fabBox = document.getElementById('fab-box');
 const dragZone = document.getElementById('drag-zone');
 
-// --- ระบบ Resizable (ยืดหด) ที่ปรับปรุงใหม่ ---
+// --- ระบบ Resizable ---
 let isDragging = false;
-
-const startDragging = (e) => {
-    isDragging = true;
-    document.body.style.userSelect = 'none'; // กันการคลุมดำข้อความขณะลาก
-};
-
+const startDragging = () => { isDragging = true; document.body.style.userSelect = 'none'; };
 const dragging = (e) => {
     if (!isDragging) return;
-    
-    // รับค่าตำแหน่ง Y จากทั้ง Mouse และ Touch
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
-    // คำนวณความสูงใหม่ (ความสูงหน้าจอ - ตำแหน่งนิ้ว)
     let newHeight = window.innerHeight - clientY;
-    
-    // จำกัดช่วงการยืดหด (Min 100px, Max 90% ของจอ)
-    const minH = 100;
-    const maxH = window.innerHeight * 0.9;
-    
-    if (newHeight >= minH && newHeight <= maxH) {
+    if (newHeight >= 100 && newHeight <= window.innerHeight * 0.9) {
         sheet.style.height = newHeight + 'px';
     }
 };
+const stopDragging = () => { isDragging = false; document.body.style.userSelect = ''; };
 
-const stopDragging = () => {
-    isDragging = false;
-    document.body.style.userSelect = '';
-};
-
-// ผูก Event สำหรับลาก
 dragZone.addEventListener('mousedown', startDragging);
 window.addEventListener('mousemove', dragging);
 window.addEventListener('mouseup', stopDragging);
-
 dragZone.addEventListener('touchstart', startDragging);
 window.addEventListener('touchmove', dragging);
 window.addEventListener('touchend', stopDragging);
@@ -189,15 +173,17 @@ window.addEventListener('touchend', stopDragging);
 // --- ปุ่มเปิด/ปิด ---
 document.getElementById('toggle-table-btn').onclick = () => {
     sheet.style.display = 'flex';
+    sheet.style.height = '50vh';
     fabBox.classList.add('fab-hidden');
 };
-
 document.getElementById('close-table-btn').onclick = () => {
     sheet.style.display = 'none';
     fabBox.classList.remove('fab-hidden');
 };
 
-// --- โหลดข้อมูล & Marker ---
+// --- โหลดข้อมูล & Marker (Logic เดิมทั้งหมด) ---
+const labelOffsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
+
 function showLoading() { document.getElementById('loading-overlay').style.display='flex'; }
 function hideLoading() { document.getElementById('loading-overlay').style.display='none'; }
 
@@ -206,16 +192,30 @@ async function loadLocations(){
         const res = await fetch('https://script.google.com/macros/s/AKfycbzdYdBwnBhdixvyp4sjTwcSjSGUUM0TCXCVmABjt58A--TUOplaeXztj5yCp0Kt_6shAw/exec');
         const locations = await res.json();
         
+        // Populate Table
         const tableBody = document.querySelector('#data-table tbody');
         tableBody.innerHTML = locations.map(loc => `<tr><td><b>${loc.id}</b></td><td>${loc.name}</td></tr>`).join('');
 
+        // Add Markers (ต้นฉบับ)
         locations.forEach(loc => {
-            let colorClass = (loc.status === "Complete") ? "green-dot-marker" : (loc.status === "Incomplete" ? "yellow-dot-marker" : "red-dot-marker");
-            const markerDiv = document.createElement('div'); markerDiv.className = colorClass;
-            new maplibregl.Marker({element: markerDiv}).setLngLat([loc.lng, loc.lat]).addTo(map);
+            let colorClass = "red-dot-marker"; 
+            if (loc.status === "Complete") colorClass = "green-dot-marker";
+            else if (loc.status === "Incomplete") colorClass = "yellow-dot-marker";
+            else if (loc.status === "Critical") colorClass = "red-dot-marker";
+            
+            const markerDiv = document.createElement('div'); 
+            markerDiv.className = colorClass;
+            new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
 
-            const labelDiv = document.createElement('div'); labelDiv.className='custom-text-label'; labelDiv.innerText = loc.id;
-            new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:[0, -10]}).setLngLat([loc.lng, loc.lat]).addTo(map);
+            const labelDiv = document.createElement('div'); 
+            labelDiv.className='custom-text-label'; 
+            labelDiv.innerText = loc.id;
+            const pos = loc.labelPos?.toLowerCase();
+            const offset = labelOffsetMap[pos] || labelOffsetMap.top;
+            new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:offset})
+                .setLngLat([loc.lng, loc.lat])
+                .setPopup(new maplibregl.Popup({offset:25}).setText(loc.name))
+                .addTo(map);
         });
     } catch(err) { console.error(err); }
     finally { hideLoading(); }
@@ -226,7 +226,11 @@ datePicker.onchange = () => {
     fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + datePicker.value).then(() => location.reload());
 };
 
-document.getElementById('reset-view-btn').onclick = () => { showLoading(); location.reload(); };
+document.getElementById('reset-view-btn').onclick = () => {
+    showLoading();
+    map.easeTo({ center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth], zoom:initialZoom, bearing:initialBearing, duration:800 });
+    setTimeout(() => location.reload(), 900);
+};
 
 map.on('load', () => { showLoading(); loadLocations(); });
 </script>
