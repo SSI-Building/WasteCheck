@@ -54,10 +54,13 @@
             align-items: center;
         }
         #loadingIndicator {
+            display: none;
+            align-items: center; /* ทำให้ spinner กับ text อยู่กึ่งกลางแนวเดียวกัน */
+            gap: 8px; /* ระยะห่าง */
             color: var(--accent);
             font-weight: 600;
             margin-left: 10px;
-            display: none;
+            animation: blink 1.2s infinite ease-in-out;
         }
         .btn{
             background:var(--accent);
@@ -93,7 +96,10 @@
             margin-bottom:16px;
         }
         .chart-wrap{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(10,10,10,0.04);}
-        canvas{width:100% !important;height:320px !important;}
+        canvas{
+        width:100% !important;
+        height:auto !important; 
+        }
         table{
             width:100%;
             border-collapse:collapse;
@@ -141,6 +147,41 @@
                 margin-top: 5px;
             }
         }
+
+        /* animation กระพริบ */
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+/* spinner หมุน */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* loading container */
+#loadingIndicator {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-left: 10px;
+
+    animation: blink 1.2s infinite ease-in-out;
+}
+
+/* วงหมุน */
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 3px solid rgba(10, 104, 71, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+}
+        
     </style>
 </head>
 <body>
@@ -175,7 +216,10 @@
                 <button class="btn" id="resetBtn">รีเซ็ต</button>
                 <button class="btn" id="exportBtn">Export CSV</button>
                 <button class="btn" onclick="goBack()">กลับหน้าหลัก</button>
-                <span id="loadingIndicator">กำลังโหลด...</span>
+                <div id="loadingIndicator">
+                <div class="spinner"></div>
+                กำลังโหลดข้อมูล...
+                </div>
             </div>
         </header>
 
@@ -205,6 +249,7 @@
                 <div class="value" id="totalLocations">0</div>
                 <div class="compare" id="compareLocations" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
             </div>
+            
         </section>
 
         <section class="grid-two">
@@ -319,6 +364,7 @@
             const className = diffPercent > 0 ? 'up' : 'down';
             return `<span class="${className}">${arrow} ${Math.abs(diffPercent)}%</span>`;
         }
+        
 
         function renderBagSummary(totals, prevTotals) {
             const totalAll = totals.red + totals.green + totals.black + totals.food;
@@ -413,7 +459,8 @@
         }
 
         async function fetchData(filterType, params) {
-            document.getElementById('loadingIndicator').style.display = 'inline';
+            document.getElementById('loadingIndicator').style.display = 'inline-flex';
+            document.getElementById('applyFilterBtn').disabled = true;
             const prevParams = getPreviousPeriodParams(filterType, params);
             const [currentPeriodData, previousPeriodData] = await Promise.all([
                 fetchSinglePeriod(filterType, params),
@@ -422,6 +469,7 @@
             currentData = currentPeriodData;
             previousData = previousPeriodData;
             document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('applyFilterBtn').disabled = false;
         }
 
         function renderComparison(elementId, current, previous, filterType, isLocationCount = false, maxValue = null) {
@@ -491,33 +539,62 @@
             updateCharts(data, totals);
         }
 
+        //เพิ่มฟังชั่นย่อชื่อกราฟ
+            function shortenLabel(text, maxLength = 10) {
+            if (!text) return '';
+            return text.length > maxLength 
+            ? text.substring(0, maxLength) + '...' 
+            : text;
+            }
+
+
+
         let pieChart, barChart;
         function createCharts() {
             const ctxPie = document.getElementById('pieChart').getContext('2d');
             pieChart = new Chart(ctxPie, {
-                type: 'pie',
-                data: {
-                    labels: ['ถุงแดง', 'ถุงเขียว', 'ถุงดำ', 'ถุงอาหาร'],
-                    datasets: [{ data: [0, 0, 0, 0], backgroundColor: ['#ef4444', '#10b981', '#111827', '#f59e0b'], borderWidth: 1 }]
-                },
-                options: { plugins: { legend: { position: 'bottom' } }, responsive: true, maintainAspectRatio: false }
-            });
+                        type: 'doughnut',
+                        data: {
+                            labels: ['ถุงแดง', 'ถุงเขียว', 'ถุงดำ', 'ถุงอาหาร'],
+                            datasets: [{
+                                data: [0, 0, 0, 0],
+                                backgroundColor: ['#ef4444', '#10b981', '#111827', '#f59e0b'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            plugins: { legend: { position: 'bottom' } },
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '60%' // 🔥 ตรงนี้แหละที่ทำให้เป็นโดนัท
+                            }
+                        });
 
             const ctxBar = document.getElementById('barChart').getContext('2d');
-            barChart = new Chart(ctxBar, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [
-                        { label: 'ถุงแดง', data: [], stack: 'stack1', backgroundColor: '#ef4444' },
-                        { label: 'ถุงเขียว', data: [], stack: 'stack1', backgroundColor: '#10b981' },
-                        { label: 'ถุงดำ', data: [], stack: 'stack1', backgroundColor: '#111827' },
-                        { label: 'ถุงอาหาร', data: [], stack: 'stack1', backgroundColor: '#f59e0b' }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
-            });
+                barChart = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            { label: 'ถุงแดง', data: [], stack: 'stack1', backgroundColor: '#ef4444' },
+                            { label: 'ถุงเขียว', data: [], stack: 'stack1', backgroundColor: '#10b981' },
+                            { label: 'ถุงดำ', data: [], stack: 'stack1', backgroundColor: '#111827' },
+                            { label: 'ถุงอาหาร', data: [], stack: 'stack1', backgroundColor: '#f59e0b' }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y', // ✅ ทำให้เป็นแนวนอน
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true, beginAtZero: true },
+                            y: { stacked: true }
+                        }
+                    }
+                });
         }
+
+        
 
         function updateCharts(data, totals) {
             pieChart.data.datasets[0].data = [totals.red, totals.green, totals.black, totals.food];
@@ -530,11 +607,17 @@
             }, {});
 
             const labels = Object.keys(areaCounts);
-            barChart.data.labels = labels;
+
+            // ✅ ย่อชื่อก่อนส่งเข้า chart
+            const shortLabels = labels.map(l => shortenLabel(l, 12));
+
+            barChart.data.labels = shortLabels;
+
             barChart.data.datasets[0].data = labels.map(l => areaCounts[l].red);
             barChart.data.datasets[1].data = labels.map(l => areaCounts[l].green);
             barChart.data.datasets[2].data = labels.map(l => areaCounts[l].black);
             barChart.data.datasets[3].data = labels.map(l => areaCounts[l].food);
+
             barChart.update();
         }
 
