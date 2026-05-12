@@ -624,17 +624,33 @@
                 return acc;
             }, {});
 
-            const labels = Object.keys(areaCounts);
-
-            // ✅ ย่อชื่อก่อนส่งเข้า chart
-            const shortLabels = labels.map(l => shortenLabel(l, 12));
-
-            barChart.data.labels = shortLabels;
-
-            barChart.data.datasets[0].data = labels.map(l => areaCounts[l].red);
-            barChart.data.datasets[1].data = labels.map(l => areaCounts[l].green);
-            barChart.data.datasets[2].data = labels.map(l => areaCounts[l].black);
-            barChart.data.datasets[3].data = labels.map(l => areaCounts[l].food);
+			// เรียงพื้นที่จากจำนวนขยะรวมมาก -> น้อย
+			const labels = Object.keys(areaCounts).sort((a, b) => {
+			    const totalA =
+			        areaCounts[a].red +
+			        areaCounts[a].green +
+			        areaCounts[a].black +
+			        areaCounts[a].food;
+			
+			    const totalB =
+			        areaCounts[b].red +
+			        areaCounts[b].green +
+			        areaCounts[b].black +
+			        areaCounts[b].food;
+			
+			    return totalB - totalA;
+			});
+			
+			// ย่อชื่อก่อนแสดง
+			const shortLabels = labels.map(l => shortenLabel(l, 12));
+			
+			barChart.data.labels = shortLabels;
+			
+			// ใส่ข้อมูลตามลำดับใหม่
+			barChart.data.datasets[0].data = labels.map(l => areaCounts[l].red);
+			barChart.data.datasets[1].data = labels.map(l => areaCounts[l].green);
+			barChart.data.datasets[2].data = labels.map(l => areaCounts[l].black);
+			barChart.data.datasets[3].data = labels.map(l => areaCounts[l].food);
 
             barChart.update();
         }
