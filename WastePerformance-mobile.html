@@ -417,15 +417,51 @@
         }
 
         function computeAndRender(data, previousData) {
+            const uniqueLocations = new Set(
+                data.map(r => {
+                    const dateOnly = r.datetime
+                        ? new Date(r.datetime).toLocaleDateString('th-TH')
+                        : '';
+                    return `${r.area}_${dateOnly}`;
+                })
+            ).size;
+            
             const totals = data.reduce((acc, r) => {
-                acc.red += r.red; acc.green += r.green; acc.black += r.black; acc.food += r.food;
+                acc.red += r.red;
+                acc.green += r.green;
+                acc.black += r.black;
+                acc.food += r.food;
                 return acc;
-            }, { red: 0, green: 0, black: 0, food: 0, locations: data.length });
+            }, {
+                red: 0,
+                green: 0,
+                black: 0,
+                food: 0,
+                locations: uniqueLocations
+            });
 
+            const prevUniqueLocations = new Set(
+                previousData.map(r => {
+                    const dateOnly = r.datetime
+                        ? new Date(r.datetime).toLocaleDateString('th-TH')
+                        : '';
+                    return `${r.area}_${dateOnly}`;
+                })
+            ).size;
+            
             const prevTotals = previousData.reduce((acc, r) => {
-                acc.red += r.red; acc.green += r.green; acc.black += r.black; acc.food += r.food;
+                acc.red += r.red;
+                acc.green += r.green;
+                acc.black += r.black;
+                acc.food += r.food;
                 return acc;
-            }, { red: 0, green: 0, black: 0, food: 0, locations: previousData.length });
+            }, {
+                red: 0,
+                green: 0,
+                black: 0,
+                food: 0,
+                locations: prevUniqueLocations
+            });
 
             document.getElementById('totalRed').innerText = formatNumber(totals.red);
             document.getElementById('totalGreen').innerText = formatNumber(totals.green);
