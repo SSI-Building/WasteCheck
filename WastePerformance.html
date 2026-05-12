@@ -498,10 +498,23 @@
         }
 
         function computeAndRender(data, previousData) {
-            const totals = data.reduce((acc, row) => {
-                acc.red += row.red; acc.green += row.green; acc.black += row.black; acc.food += row.food;
-                return acc;
-            }, { red: 0, green: 0, black: 0, food: 0, locations: data.length });
+			const uniqueLocations = new Set(
+			    data.map(r => `${r.area}_${r.datetime.split(' ')[0]}`)
+			).size;
+			
+			const totals = data.reduce((acc, row) => {
+			    acc.red += row.red;
+			    acc.green += row.green;
+			    acc.black += row.black;
+			    acc.food += row.food;
+			    return acc;
+			}, {
+			    red: 0,
+			    green: 0,
+			    black: 0,
+			    food: 0,
+			    locations: uniqueLocations
+			});
 
             const prevTotals = previousData.reduce((acc, row) => {
                 acc.red += row.red; acc.green += row.green; acc.black += row.black; acc.food += row.food;
