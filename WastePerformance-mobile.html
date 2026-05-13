@@ -381,23 +381,77 @@ function getWorkingDaysInYear(year) {
 
 function getMaxLocations(filterType, params) {
 
+    const now = new Date();
+
+    // ===== รายวัน =====
     if (filterType === 'day') {
         return LOCATION_PER_DAY;
     }
 
+    // ===== รายเดือน =====
     if (filterType === 'month') {
-        return LOCATION_PER_DAY *
-            getWorkingDaysInMonth(
-                Number(params.year),
-                Number(params.month)
-            );
+
+        const month = Number(params.month);
+        const year = Number(params.year);
+
+        let lastDay;
+
+        // ถ้าเป็นเดือนปัจจุบัน
+        if (
+            month === (now.getMonth() + 1) &&
+            year === now.getFullYear()
+        ) {
+            lastDay = now.getDate();
+        }
+        else {
+            lastDay = getDaysInMonth(year, month);
+        }
+
+        let workingDays = 0;
+
+        for (let d = 1; d <= lastDay; d++) {
+
+            const date = new Date(year, month - 1, d);
+
+            if (!isHoliday(date)) {
+                workingDays++;
+            }
+        }
+
+        return LOCATION_PER_DAY * workingDays;
     }
 
+    // ===== รายปี =====
     if (filterType === 'year') {
-        return LOCATION_PER_DAY *
-            getWorkingDaysInYear(
-                Number(params.year)
-            );
+
+        const year = Number(params.year);
+
+        let endDate;
+
+        // ถ้าเป็นปีปัจจุบัน
+        if (year === now.getFullYear()) {
+            endDate = now;
+        }
+        else {
+            endDate = new Date(year, 11, 31);
+        }
+
+        let workingDays = 0;
+
+        const startDate = new Date(year, 0, 1);
+
+        for (
+            let d = new Date(startDate);
+            d <= endDate;
+            d.setDate(d.getDate() + 1)
+        ) {
+
+            if (!isHoliday(d)) {
+                workingDays++;
+            }
+        }
+
+        return LOCATION_PER_DAY * workingDays;
     }
 
     return LOCATION_PER_DAY;
