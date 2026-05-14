@@ -956,38 +956,38 @@ async function fetchSinglePeriod(filterType, params) {
 
             const maxLocations = getMaxLocations(filterType, params);
             const locationPercent = maxLocations ? Math.round((totals.locations / maxLocations) * 100) : 0;
-            document.getElementById('totalLocations').innerHTML =
-				`
-				<div style="
-				    font-size:18px;
-				    font-weight:700;
-				">
-				    ${totals.locations}
-				
-				    <span style="
-				        color:#6b7280;
-				        font-weight:500;
-				    ">
-				        / ${maxLocations}
-				    </span>
-				</div>
-				
-				<div style="
-				    font-size:10px;
-				    color:#9ca3af;
-				    margin-top:2px;
-				">
-				    เก็บได้ / เป้าหมาย
-				</div>
-				
-				<div style="
-				    font-size:12px;
-				    color:#6b7280;
-				    margin-top:6px;
-				">
-				    ประสิทธิภาพการเก็บ ${locationPercent}%
-				</div>
-				`;
+			document.getElementById('totalLocations').innerHTML =
+			`
+			<div style="
+			    display:flex;
+			    flex-direction:column;
+			    line-height:1.2;
+			">
+			    
+			    <div style="
+			        font-size:18px;
+			        font-weight:700;
+			    ">
+			        ${formatNumber(totals.locations)}
+			        <span style="
+			            color:#6b7280;
+			            font-weight:500;
+			        ">
+			            / ${formatNumber(maxLocations)}
+			        </span>
+			    </div>
+			
+			    <div style="
+			        font-size:12px;
+			        color:#0a6847;
+			        font-weight:600;
+			        margin-top:2px;
+			    ">
+			        Performance ${locationPercent}%
+			    </div>
+			
+			</div>
+			`;
             
             renderComparison('compareRed', totals.red, prevTotals.red, filterType, false); 
             renderComparison('compareGreen', totals.green, prevTotals.green, filterType, false);
