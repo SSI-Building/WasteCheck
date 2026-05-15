@@ -672,18 +672,36 @@ function renderComparison(elementId, current, previous, filterType, isLocation =
         const maxLoc = getMaxLocations(filterType, params, true);
         const perf = maxLoc > 0 ? Math.round((totals.locations / maxLoc) * 100) : 0;
 
-        document.getElementById('totalLocations').innerHTML = `
-            <div style="display:flex; flex-direction:column; line-height:1.2;">
-                <div style="font-size:18px; font-weight:700;">${formatNumber(totals.locations)} <span style="color:#6b7280; font-weight:500;">/ ${formatNumber(maxLoc)}</span></div>
-                <div style="
-                font-size:12px;
+document.getElementById('totalLocations').innerHTML = `
+    <div style="display:flex; flex-direction:column; line-height:1.2;">
+            <div style="
+            font-size:20px;
+            font-weight:700;
+            display:flex;
+            align-items:baseline;
+            flex-wrap:wrap;
+            gap:4px;
+            ">
+            ${formatNumber(totals.locations)} 
+            
+            <span style="
+            color:#6b7280;
+            font-weight:500;
+            font-size:20px;
+            ">
+                / ${formatNumber(maxLoc)}
+            </span>
+
+            <span style="
+                font-size:11.5px;
                 color:${totals.locations >= prevTotals.locations ? '#15803d' : '#dc2626'};
                 font-weight:600;
-                margin-top:2px;
-                ">
-                    Performance ${perf}%
-                </div>
-            </div>`;
+                margin-left:4px;
+            ">
+                (Perf. ${perf}%)
+            </span>
+        </div>
+    </div>`;
         renderComparison('compareLocations', totals.locations, prevTotals.locations, filterType, true);
 
         // Table
