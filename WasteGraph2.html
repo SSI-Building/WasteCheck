@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Waste Performance Analytics (Capture View)</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+
+    <style>
+        :root{
+            --bg:#f6f8f9;
+            --card:#ffffff;
+            --accent:#0a6847;
+            --muted:#6b7280;
+        }
+        body{
+            margin:0;
+            font-family: "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+            background:var(--bg);
+            color:#111827;
+        }
+      /* --- ปรับปรุงคอนเทนเนอร์ให้ขยายเต็มหน้าจอ 100% --- */
+      .container {
+          width: 100%;
+          max-width: 100% !important; /* ปลดล็อก 1200px ออก */
+          margin: 0 !important;        /* ตัดขอบว่างรอบตัวเว็บออก */
+          padding: 15px;               /* เหลือขอบด้านในไว้เล็กน้อยให้ดูสบายตา */
+          box-sizing: border-box;
+      }
+        /* 1. ซ่อน Header และเครื่องมือควบคุมทั้งหมดออก เพื่อให้พร้อมสำหรับการสแนปภาพ */
+        header {
+            display: none !important;
+        }
+        .kpi{
+            display:grid;
+            grid-template-columns:repeat(5,1fr);
+            gap:12px;
+            margin-bottom:18px;
+        }
+        .card{
+            background:var(--card);
+            border-radius:10px;
+            padding:12px;
+            box-shadow:0 6px 18px rgba(10,10,10,0.04);
+        }
+        .card .title{font-size:13px;color:var(--muted);margin-bottom:6px;}
+        .card .value{font-size:20px;font-weight:700;color:#111827;}
+        .up { color: #dc2626; font-weight: 600; } 
+        .down { color: #15803d; font-weight: 600; } 
+        .same { color: var(--muted); }
+
+      /* --- ปรับสัดส่วนกราฟซ้าย-ขวาให้ขยายตัวตามหน้าจออย่างสมดุล --- */
+      .grid-two {
+          display: grid;
+          /* เปลี่ยนจากเดิมที่เป็น 420px ตายตัว ให้ฝั่งขวาขยายตามสัดส่วนเป็นเปอร์เซ็นต์ */
+          grid-template-columns: 1fr 38%; 
+          gap: 16px;
+          margin-bottom: 16px;
+      }
+            /* ตั้งค่าให้ตัวบอดี้เว็บไม่มี Margin ส่วนเกิน */
+      body {
+          margin: 0;
+          padding: 0;
+          background: var(--bg);
+          font-family: "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+      }
+        .chart-wrap{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(10,10,10,0.04);}
+        canvas{
+            width:100% !important;
+            height:auto !important; 
+        }
+        
+        /* 2. ซ่อนแถบวันหยุดและกล่องตารางรายพื้นที่ออกไปตามภาพตัวอย่าง */
+        .holiday-wrap, .table-container {
+            display: none !important;
+        }
+
+        @media(max-width:980px){
+            .kpi{grid-template-columns:repeat(2,1fr);}
+            .grid-two{grid-template-columns:1fr;}
+            canvas{height:260px !important;}
+        }
+    </style>
+</head>
+<body>
+    <select id="filterType" style="display:none;"><option value="week">กรองรายสัปดาห์</option></select>
+    <input type="date" id="filterDay" style="display:none;" />
+    <input type="week" id="filterWeek" style="display:none;" />
+    <input type="number" id="filterMonth" style="display:none;">
+    <input type="number" id="filterYearM" style="display:none;">
+    <input type="number" id="filterYearY" style="display:none;">
+
+    <div class="container">
+        <section class="kpi" aria-label="KPI summary">
+            <div class="card">
+                <div class="title">ถุงแดงรวม</div>
+                <div class="value" id="totalRed">0</div>
+                <div class="compare" id="compareRed" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงเขียวรวม</div>
+                <div class="value" id="totalGreen">0</div>
+                <div class="compare" id="compareGreen" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงดำรวม</div>
+                <div class="value" id="totalBlack">0</div>
+                <div class="compare" id="compareBlack" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+            <div class="card">
+                <div class="title">ถุงใส่เศษอาหารรวม</div>
+                <div class="value" id="totalFood">0</div>
+                <div class="compare" id="compareFood" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+            <div class="card">
+                <div class="title">จำนวนจุดที่บันทึก</div>
+                <div class="value" id="totalLocations">0</div>
+                <div class="compare" id="compareLocations" style="color:var(--muted);font-size:12px; margin-top:4px;"></div>
+            </div>
+        </section>
+
+        <section class="grid-two">
+            <div class="chart-wrap">
+                <canvas id="barChart"></canvas>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div class="chart-wrap">
+                    <canvas id="pieChart"></canvas>
+                </div>
+                <div class="card">
+                    <h3 style="margin:0 0 10px 0; font-size:14px;">📊 รายละเอียดสรุป (เทียบช่วงก่อนหน้า)</h3>
+                    <div id="bagSummary" style="font-size:13px; color:var(--text-muted);">-</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+<script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbz7IlAqh8Fey3V3mvVXcy7ZdpM-9NoAGXTCs03d8ZfBfALH2oYu2xlvrnXoKmlVS4OWow/exec';
+    const HOLIDAY_API_URL = 'https://script.google.com/macros/s/AKfycbwTDXNro5EksK-e6C105jWE9iMGi72yWnF3Nqv9p1jf2gKRwJs9i6s4GIoqFVj8D9szGQ/exec';
+
+    let HOLIDAYS = [];
+    let currentData = [];
+    let previousData = [];
+    let filteredData = [];
+    let pieChart, barChart;
+    const LOCATION_PER_DAY = 35;
+
+    function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
+
+    async function loadHolidays() {
+        try {
+            const response = await fetch(HOLIDAY_API_URL);
+            const result = await response.json();
+            HOLIDAYS = result.data || [];
+        } catch (err) { console.error("โหลดวันหยุดไม่สำเร็จ", err); }
+    }
+
+    function isHoliday(date) {
+        if (date.getDay() === 0) return true;
+        return HOLIDAYS.some(h => 
+            Number(h.day) === date.getDate() && 
+            Number(h.month) === date.getMonth() + 1 && 
+            Number(h.year) === date.getFullYear()
+        );
+    }
+
+    function getWorkingDaysInRange(startDate, endDate) {
+        let count = 0;
+        let cur = new Date(startDate);
+        cur.setHours(0,0,0,0);
+        let last = new Date(endDate);
+        last.setHours(0,0,0,0);
+        
+        while (cur <= last) {
+            if (!isHoliday(cur)) count++;
+            cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+    }
+
+    function getWeekRange(year, week) {
+        const firstDayOfYear = new Date(year, 0, 1);
+        const daysOffset = (week - 1) * 7 - firstDayOfYear.getDay();
+        const start = new Date(year, 0, 1 + daysOffset);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        return { start, end };
+    }
+
+    function getComparisonCutoff(filterType, params) {
+        const now = new Date();
+        if (filterType === 'week') {
+            const [y, w] = params.week.split('-W').map(Number);
+            const range = getWeekRange(y, w);
+            if (now >= range.start && now <= range.end) return now;
+        }
+        return null;
+    }
+
+    function getMaxLocations(filterType, params, isCurrentPeriod = true) {
+        const now = new Date();
+        if (filterType === 'week') {
+            const [y, w] = params.week.split('-W').map(Number);
+            const range = getWeekRange(y, w);
+            if (isCurrentPeriod && now >= range.start && now <= range.end) {
+                return LOCATION_PER_DAY * getWorkingDaysInRange(range.start, now);
+            }
+            return LOCATION_PER_DAY * getWorkingDaysInRange(range.start, range.end);
+        }
+        return LOCATION_PER_DAY;
+    }
+
+    async function fetchSinglePeriod(filterType, params) {
+        const urlParams = new URLSearchParams();
+        urlParams.append('type', filterType);
+        urlParams.append('week', params.week);
+
+        try {
+            const response = await fetch(`${API_URL}?${urlParams.toString()}`);
+            const result = await response.json();
+            if (result.status === 'success') {
+                return result.data.map(row => ({
+                    id: row[0], area: row[1], red: Number(row[2] || 0), green: Number(row[3] || 0),
+                    black: Number(row[4] || 0), food: Number(row[5] || 0), rawDate: row[6],
+                    datetime: row[6] ? new Date(row[6]).toLocaleString('th-TH') : ''
+                }));
+            }
+        } catch (err) { console.error(err); }
+        return [];
+    }
+
+    function getPreviousParams(filterType, params) {
+        let [y, w] = params.week.split('-W').map(Number);
+        if (--w <= 0) { y--; w = 52; }
+        return { week: `${y}-W${String(w).padStart(2, '0')}` };
+    }
+
+    async function fetchData(filterType, params) {
+        const prevParams = getPreviousParams(filterType, params);
+        const [currRaw, prevRaw] = await Promise.all([
+            fetchSinglePeriod(filterType, params),
+            prevParams ? fetchSinglePeriod(filterType, prevParams) : Promise.resolve([])
+        ]);
+
+        const cutoff = getComparisonCutoff(filterType, params);
+        let processedPrev = prevRaw;
+
+        if (cutoff && prevParams) {
+            let compareLimit = new Date(cutoff);
+            compareLimit.setDate(compareLimit.getDate() - 7);
+            processedPrev = prevRaw.filter(item => new Date(item.rawDate) <= compareLimit);
+        }
+
+        currentData = currRaw;
+        previousData = processedPrev;
+    }
+
+    function getTrendHtml(current, previous) {
+        if (previous === 0) return current > 0 ? `<span class="up">▲ New</span>` : `<span class="same">-</span>`;
+        const diffPercent = Math.round(((current - previous) / previous) * 100);
+        if (diffPercent === 0) return `<span class="same">0%</span>`;
+        const arrow = diffPercent > 0 ? '▲' : '▼';
+        const className = diffPercent > 0 ? 'up' : 'down';
+        return `<span class="${className}">${arrow} ${Math.abs(diffPercent)}%</span>`;
+    }
+
+    function renderComparison(elementId, current, previous, filterType, isLocation = false) {
+        const diff = current - previous;
+        const el = document.getElementById(elementId);
+        const params = { week: document.getElementById('filterWeek').value };
+        const cutoff = getComparisonCutoff(filterType, params);
+
+        const label = cutoff !== null ? "สัปดาห์ก่อน(WTD)" : "สัปดาห์ก่อน";
+
+        if (diff === 0) { 
+            el.innerHTML = `<span style="font-size:11px; color:#6b7280;">เท่าเดิม เทียบกับ ${label}</span>`; 
+            return; 
+        }
+        
+        let arrow = diff > 0 ? '▲' : '▼';
+        let className = isLocation ? (diff > 0 ? 'down' : 'up') : (diff > 0 ? 'up' : 'down');
+        const diffP = previous > 0 ? Math.round((Math.abs(diff) / previous) * 100) : 0;
+        
+        el.innerHTML = `
+            <div style="font-size: 11px; white-space: nowrap; display: block; width: 100%;">
+                <strong class="${className}" style="margin-right: 2px;">
+                    ${arrow} ${diff > 0 ? '+' : ''}${formatNumber(diff)} (${diffP}%)
+                </strong>
+                <span style="color: #6b7280; letter-spacing: -0.2px;">เทียบกับ ${label}</span>
+            </div>`;
+    }
+
+    function computeAndRender() {
+        const sum = (data) => data.reduce((acc, r) => {
+            acc.red += r.red; acc.green += r.green; acc.black += r.black; acc.food += r.food;
+            return acc;
+        }, { red: 0, green: 0, black: 0, food: 0 });
+
+        const totals = sum(filteredData);
+        const prevTotals = sum(previousData);
+
+        const countLoc = (data) => new Set(data.map(r => `${r.area}_${r.datetime.split(' ')[0]}`)).size;
+        totals.locations = countLoc(filteredData);
+        prevTotals.locations = countLoc(previousData);
+
+        ['Red', 'Green', 'Black', 'Food'].forEach(color => {
+            const key = color.toLowerCase();
+            document.getElementById(`total${color}`).innerText = formatNumber(totals[key]);
+            renderComparison(`compare${color}`, totals[key], prevTotals[key], 'week');
+        });
+
+        const totalAll = totals.red + totals.green + totals.black + totals.food;
+        const prevTotalAll = prevTotals.red + prevTotals.green + prevTotals.black + prevTotals.food;
+        const percent = (v) => totalAll === 0 ? 0 : Math.round((v / totalAll) * 100);
+
+        document.getElementById('bagSummary').innerHTML = `
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                <div>🟥 ถุงแดง: ${formatNumber(totals.red)} (${percent(totals.red)}%) ${getTrendHtml(totals.red, prevTotals.red)}</div>
+                <div>⬛ ถุงดำ: ${formatNumber(totals.black)} (${percent(totals.black)}%) ${getTrendHtml(totals.black, prevTotals.black)}</div>
+                <div>🟩 ถุงเขียว: ${formatNumber(totals.green)} (${percent(totals.green)}%) ${getTrendHtml(totals.green, prevTotals.green)}</div>
+                <div>🟨 ถุงอาหาร: ${formatNumber(totals.food)} (${percent(totals.food)}%) ${getTrendHtml(totals.food, prevTotals.food)}</div>
+            </div>
+            <div style="margin-top:12px; padding-top:10px; border-top:1px solid #eee; font-weight:700;">
+                รวมทั้งหมด: ${formatNumber(totalAll)} ใบ ${getTrendHtml(totalAll, prevTotalAll)}
+            </div>`;
+
+        const params = { week: document.getElementById('filterWeek').value };
+        const maxLoc = getMaxLocations('week', params, true);
+        const perf = maxLoc > 0 ? Math.round((totals.locations / maxLoc) * 100) : 0;
+
+        document.getElementById('totalLocations').innerHTML = `
+            <div style="display:flex; flex-direction:column; line-height:1.2;">
+                <div style="font-size:20px; font-weight:700; display:flex; align-items:baseline; flex-wrap:wrap; gap:4px;">
+                    ${formatNumber(totals.locations)} 
+                    <span style="color:#6b7280; font-weight:500; font-size:20px;">/ ${formatNumber(maxLoc)}</span>
+                    <span style="font-size:11.5px; color:${totals.locations >= prevTotals.locations ? '#15803d' : '#dc2626'}; font-weight:600; margin-left:4px;">
+                        (Perf. ${perf}%)
+                    </span>
+                </div>
+            </div>`;
+        renderComparison('compareLocations', totals.locations, prevTotals.locations, 'week', true);
+        updateCharts(filteredData, totals);
+    }
+
+    function createCharts() {
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        pieChart = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['ถุงแดง', 'ถุงเขียว', 'ถุงดำ', 'ถุงอาหาร'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#ef4444', '#10b981', '#111827', '#f59e0b'],
+                    borderWidth: 1
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom' } } }
+        });
+
+        const ctxBar = document.getElementById('barChart').getContext('2d');
+        barChart = new Chart(ctxBar, {
+            type: 'bar',
+            data: { labels: [], datasets: [
+                { label: 'ถุงแดง', data: [], stack: 'stack1', backgroundColor: '#ef4444' },
+                { label: 'ถุงเขียว', data: [], stack: 'stack1', backgroundColor: '#10b981' },
+                { label: 'ถุงดำ', data: [], stack: 'stack1', backgroundColor: '#111827' },
+                { label: 'ถุงอาหาร', data: [], stack: 'stack1', backgroundColor: '#f59e0b' }
+            ]},
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+        });
+    }
+
+    function updateCharts(data, totals) {
+        pieChart.data.datasets[0].data = [totals.red, totals.green, totals.black, totals.food];
+        pieChart.update();
+
+        const areaCounts = data.reduce((acc, r) => {
+            if (!acc[r.area]) acc[r.area] = { red: 0, green: 0, black: 0, food: 0 };
+            acc[r.area].red += r.red; acc[r.area].green += r.green; acc[r.area].black += r.black; acc[r.area].food += r.food;
+            return acc;
+        }, {});
+
+        const labels = Object.keys(areaCounts).sort((a, b) => {
+            const sum = obj => obj.red + obj.green + obj.black + obj.food;
+            return sum(areaCounts[b]) - sum(areaCounts[a]);
+        });
+
+        barChart.data.labels = labels.map(l => l.length > 12 ? l.substring(0, 10) + '...' : l);
+        barChart.data.datasets[0].data = labels.map(l => areaCounts[l].red);
+        barChart.data.datasets[1].data = labels.map(l => areaCounts[l].green);
+        barChart.data.datasets[2].data = labels.map(l => areaCounts[l].black);
+        barChart.data.datasets[3].data = labels.map(l => areaCounts[l].food);
+        barChart.update();
+    }
+
+    // 3. ฟังก์ชันคำนวณหาวันที่ของ "สัปดาห์ก่อนหน้า" (สัปดาห์ที่แล้ว) อัตโนมัติเมื่อโหลดหน้าเว็บ
+    function setLastWeekAutomatically() {
+        const today = new Date();
+        // ลบออกไป 7 วันเพื่อย้อนกลับไปสัปดาห์ก่อนหน้า
+        const lastWeekDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        const year = lastWeekDate.getFullYear();
+        const start = new Date(year, 0, 1);
+        const week = Math.ceil((((lastWeekDate - start) / 86400000) + start.getDay() + 1) / 7);
+        
+        // ยัดรูปแบบความกว้างปีและสัปดาห์ (เช่น 2026-W20) ลงฟิลเตอร์หลัก
+        document.getElementById('filterWeek').value = `${year}-W${String(week).padStart(2, '0')}`;
+    }
+
+    async function handleAutoFilter() {
+        const params = { week: document.getElementById('filterWeek').value };
+        await fetchData('week', params);
+        filteredData = currentData; // แสดงผลข้อมูลปัจจุบันที่ดึงมา
+        computeAndRender();
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        createCharts();
+        await loadHolidays();
+        
+        // รันการคำนวณสัปดาห์ก่อนหน้าและดึงข้อมูลอัตโนมัติทันทีเมื่อหน้าเว็บโหลด
+        setLastWeekAutomatically();
+        await handleAutoFilter();
+    });
+</script>
+</body>
+</html>
