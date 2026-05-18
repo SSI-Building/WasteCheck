@@ -20,11 +20,14 @@
             background:var(--bg);
             color:#111827;
         }
-        .container{
-            max-width:1200px;
-            margin:20px auto;
-            padding:18px;
-        }
+      /* --- ปรับปรุงคอนเทนเนอร์ให้ขยายเต็มหน้าจอ 100% --- */
+      .container {
+          width: 100%;
+          max-width: 100% !important; /* ปลดล็อก 1200px ออก */
+          margin: 0 !important;        /* ตัดขอบว่างรอบตัวเว็บออก */
+          padding: 15px;               /* เหลือขอบด้านในไว้เล็กน้อยให้ดูสบายตา */
+          box-sizing: border-box;
+      }
         /* 1. ซ่อน Header และเครื่องมือควบคุมทั้งหมดออก เพื่อให้พร้อมสำหรับการสแนปภาพ */
         header {
             display: none !important;
@@ -47,12 +50,21 @@
         .down { color: #15803d; font-weight: 600; } 
         .same { color: var(--muted); }
 
-        .grid-two{
-            display:grid;
-            grid-template-columns: 1fr 420px;
-            gap:16px;
-            margin-bottom:16px;
-        }
+      /* --- ปรับสัดส่วนกราฟซ้าย-ขวาให้ขยายตัวตามหน้าจออย่างสมดุล --- */
+      .grid-two {
+          display: grid;
+          /* เปลี่ยนจากเดิมที่เป็น 420px ตายตัว ให้ฝั่งขวาขยายตามสัดส่วนเป็นเปอร์เซ็นต์ */
+          grid-template-columns: 1fr 38%; 
+          gap: 16px;
+          margin-bottom: 16px;
+      }
+            /* ตั้งค่าให้ตัวบอดี้เว็บไม่มี Margin ส่วนเกิน */
+      body {
+          margin: 0;
+          padding: 0;
+          background: var(--bg);
+          font-family: "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+      }
         .chart-wrap{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(10,10,10,0.04);}
         canvas{
             width:100% !important;
