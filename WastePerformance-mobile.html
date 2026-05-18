@@ -2,1224 +2,1029 @@
 <html lang="th">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
     <title>Waste Performance Analytics</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+
     <style>
         :root{
-            --bg:#f6f8f9;
+            --bg:#f1f5f9;
             --card:#ffffff;
             --accent:#0a6847;
-            --muted:#6b7280;
+            --accent-hover:#074d33;
+            --muted:#64748b;
+            --text-main:#0f172a;
+            --border:#e2e8f0;
+        }
+        *{
+            box-sizing: border-box;
         }
         body{
             margin:0;
-            font-family: "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
             background:var(--bg);
-            color:#111827;
+            color:var(--text-main);
+            -webkit-tap-highlight-color: transparent;
         }
         .container{
             width: 100%;
             max-width:1200px;
             margin:0 auto;
-            padding:12px;
-            box-sizing: border-box;
+            padding: 12px;
         }
         header{
-            display: flex;
+            display:flex;
             flex-direction: column;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap:12px;
+            margin-bottom: 16px;
+            background: var(--card);
+            padding: 14px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         header h1{
             margin:0;
-            font-size:22px;
+            font-size:18px;
             color:var(--accent);
+            font-weight: 700;
             text-align: center;
         }
         .controls{
             display:flex;
             flex-direction: column;
             gap:10px;
-        }
-        .filter-row {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .controls select, .controls input {
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            font-size: 16px;
             width: 100%;
-            box-sizing: border-box;
         }
-        .btn-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+        .control-row {
+            display: flex;
             gap: 8px;
+            width: 100%;
+        }
+        .control-row select, .control-row input {
+            flex: 1;
+        }
+        .controls select,
+        .controls input[type="date"],
+        .controls input[type="number"],
+        .controls input[type="week"] {
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            background-color: #fff;
+            color: var(--text-main);
+            outline: none;
+            height: 42px;
+        }
+        .filter-inputs {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            width: 100%;
+        }
+        .filter-inputs label {
+            font-size: 13px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+        #loadingIndicator {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 14px;
+            animation: blink 1.2s infinite ease-in-out;
+            padding: 6px 0;
+        }
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 100%;
         }
         .btn{
             background:var(--accent);
             color:white;
             border:none;
-            padding:12px;
+            padding: 10px;
             border-radius:8px;
             cursor:pointer;
             font-weight:600;
             font-size: 14px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 42px;
+            transition: background 0.2s;
         }
-        
+        .btn:active {
+            background: var(--accent-hover);
+        }
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .btn-secondary:active {
+            background: #cbd5e1;
+        }
+        .btn-full {
+            grid-column: span 2;
+        }
         .kpi{
             display:grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns:repeat(2,1fr);
             gap:10px;
-            margin-bottom:18px;
-        }
-        .card{
-            background:var(--card);
-            border-radius:10px;
-            padding:12px;
-            box-shadow:0 6px 18px rgba(10,10,10,0.04);
+            margin-bottom:16px;
         }
         .kpi .card:last-child {
             grid-column: span 2;
         }
-        .card .title{font-size:13px;color:var(--muted);margin-bottom:4px;}
-        .card .value{font-size:20px;font-weight:700;color:#111827;}
-        .card .compare { font-size:12px; margin-top:4px; }
-
+        .card{
+            background:var(--card);
+            border-radius:12px;
+            padding: 12px;
+            box-shadow:0 2px 4px rgba(0,0,0,0.02);
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+        .card .title{
+            font-size:12px;
+            color:var(--muted);
+            margin-bottom:4px;
+            font-weight: 500;
+        }
+        .card .value{
+            font-size:18px;
+            font-weight:700;
+            color:var(--text-main);
+        }
         .up { color: #dc2626; font-weight: 600; } 
-        .down { color: #15803d; font-weight: 600; } 
+        .down { color: #16a34a; font-weight: 600; } 
         .same { color: var(--muted); }
 
         .grid-two{
-            display: flex;
+            display:flex;
             flex-direction: column;
-            gap:16px;
+            gap:14px;
+            margin-bottom:16px;
         }
-        .chart-wrap{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(10,10,10,0.04); overflow: hidden;}
-        
-        .pie-container {
+        .chart-wrap{
+            background:var(--card);
+            padding:12px;
+            border-radius:12px;
+            box-shadow:0 2px 4px rgba(0,0,0,0.02);
             position: relative;
+            height: 280px;
             width: 100%;
-            max-width: 220px;
-            margin: 10px auto;
         }
-
+        .chart-wrap-pie {
+            height: 240px;
+        }
+        canvas{
+            width:100% !important;
+            height:100% !important; 
+        }
+        
+        /* สไตล์ตารางแบบ Mobile Card สำหรับการแสดงผลบนมือถือ */
         .table-container{
             background:var(--card);
-            border-radius:10px;
-            padding:8px;
-            box-shadow:0 6px 18px rgba(10,10,10,0.04);
-            margin-top: 15px;
+            border-radius:12px;
+            padding:12px;
+            box-shadow:0 2px 4px rgba(0,0,0,0.02);
+            margin-top:12px;
         }
-        .scroll-area { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        table{ width:100%; border-collapse:collapse; font-size:12px; min-width: 580px; }
-        thead th{ text-align:left; padding:10px 8px; background:#f3f4f6; border-bottom:1px solid #e5e7eb; white-space: nowrap; }
-        tbody td{ padding:10px 8px; border-bottom:1px solid #eee; }
-        .time-col { color: var(--muted); font-size: 11px; white-space: nowrap; }
-
+        .tools{
+            display:flex;
+            flex-direction: column;
+            gap:10px;
+            margin-bottom:12px;
+        }
         .search-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+        .search, .tools select{
+            padding: 10px;
+            border-radius:8px;
+            border:1px solid var(--border);
+            width: 100%;
+            font-size: 14px;
+            height: 42px;
+        }
+        
+        /* ปรับตารางดั้งเดิมให้ซ่อนบนมือถือ แล้วเปลี่ยนเป็น List Card แทนเพื่อความอ่านง่าย */
+        table{
+            width:100%;
+            border-collapse:collapse;
+            font-size:13px;
+        }
+        thead th{
+            text-align:left;
+            padding:10px 8px;
+            background:#f8fafc;
+            border-bottom:1px solid var(--border);
+            color: var(--muted);
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        tbody td{
+            padding:10px 8px;
+            border-bottom:1px solid #f1f5f9;
+        }
+
+        /* ตารางสไตล์ Responsive สำหรับเลื่อนดูขวา-ซ้ายหากจำเป็น */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(10, 104, 71, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+        }
+
+        .holiday-wrap{
+            background: var(--card);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 16px;
+            box-shadow:0 2px 4px rgba(0,0,0,0.02);
+        }
+        .holiday-title{
+            font-weight:700;
+            margin-bottom:10px;
+            color:var(--text-main);
+            font-size:13px;
+            line-height: 1.4;
+        }
+        .holiday-list{
+            display:flex;
+            flex-wrap:wrap;
+            gap:6px;
+        }
+        .holiday-item{
+            padding: 5px 10px;
+            border-radius:20px;
+            font-size:11px;
+            font-weight:600;
+        }
+        .holiday-normal{ background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; }
+        .holiday-sunday{ background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
+
+        .info-tooltip{
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .tooltip-box{
+            position:absolute;
+            top:26px;
+            right:-10px;
+            width:280px;
+            background:#1e293b;
+            color:white;
             padding:12px;
             border-radius:8px;
-            border:1px solid #ddd;
-            width: 100%;
-            margin-bottom: 10px;
-            box-sizing: border-box;
+            font-size:12px;
+            line-height:1.5;
+            box-shadow:0 10px 25px rgba(0,0,0,0.2);
+            opacity:0;
+            visibility:hidden;
+            transform:translateY(4px);
+            transition:0.2s ease;
+            z-index:999;
+        }
+        .info-tooltip:hover .tooltip-box, .info-tooltip:active .tooltip-box{
+            opacity:1;
+            visibility:visible;
+            transform:translateY(0);
+        }
+        .tooltip-box b{ color:#f59e0b; }
+        .tooltip-note{
+            margin-top:6px;
+            padding-top:6px;
+            border-top:1px solid rgba(255,255,255,0.1);
+            color:#94a3b8;
+            font-size:11px;
         }
 
-        #loadingIndicator {
-            display: none;
-            text-align: center;
-            color: var(--accent);
-            font-weight: bold;
-            padding: 10px;
-        }
-
-        @media(min-width: 768px){
+        /* หน้าจอขนาดใหญ่ (Desktop Tablet เผื่อกลับมาเปิดคอม) */
+        @media(min-width:768px){
+            .container { padding: 20px; }
+            header { flex-direction: row; justify-content: space-between; align-items: center; }
+            header h1 { text-align: left; }
+            .controls { flex-direction: row; flex-wrap: wrap; width: auto; align-items: center; }
+            .control-row { width: auto; }
+            .btn-grid { display: flex; width: auto; }
+            .btn { width: auto; }
             .kpi { grid-template-columns: repeat(5, 1fr); }
             .kpi .card:last-child { grid-column: auto; }
-            header { flex-direction: row; justify-content: space-between; }
-            .controls { flex-direction: row; }
-            .grid-two { display: grid; grid-template-columns: 1fr 400px; }
-            table { font-size: 13px; }
+            .grid-two { grid-template-columns: 1fr 380px; flex-direction: row; }
+            .chart-wrap { height: 380px; }
+            .chart-wrap-pie { height: 260px; }
+            .tools { flex-direction: row; justify-content: space-between; }
+            .search-box { flex-direction: row; width: auto; }
+            .search { width: 220px; }
+            .tools select { width: auto; }
         }
-
-        /* เพิ่มการตั้งค่า Animation */
-@keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.3; }
-    100% { opacity: 1; }
-}
-
-#loadingIndicator {
-    display: none;
-    text-align: center;
-    color: var(--accent);
-    font-weight: bold;
-    padding: 15px;
-    /* เรียกใช้ animation ชื่อ blink ที่เราสร้างไว้ */
-    animation: blink 1.2s infinite ease-in-out; 
-    font-size: 18px;
-    background: rgba(255, 255, 255, 0);
-    border-radius: 8px;
-    margin-top: 10px;
-}
-.spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(10, 104, 71, 0.3);
-    border-radius: 50%;
-    border-top-color: var(--accent);
-    animation: spin 1s ease-in-out infinite;
-    margin-right: 8px;
-    vertical-align: middle;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Waste Performance</h1>
+            <h1>Waste Performance Analytics</h1>
             <div class="controls">
-                <div class="filter-row">
+                <div class="control-row">
                     <select id="filterType">
                         <option value="day">กรองรายวัน</option>
+                        <option value="week">กรองรายสัปดาห์</option>
                         <option value="month">กรองรายเดือน</option>
                         <option value="year">กรองรายปี</option>
                     </select>
-                    <div id="dayControls">
+                    
+                    <div id="dayControls" class="filter-inputs">
                         <input type="date" id="filterDay" />
                     </div>
-                    <div id="monthControls" style="display:none; gap:5px; flex-direction: row;">
-                        <input type="number" id="filterMonth" placeholder="เดือน" min="1" max="12">
-                        <input type="number" id="filterYearM" placeholder="ปี">
+
+                    <div id="weekControls" class="filter-inputs" style="display:none;">
+                        <input type="week" id="filterWeek" />
                     </div>
-                    <div id="yearControls" style="display:none;">
-                        <input type="number" id="filterYearY" placeholder="ปี">
+                    
+                    <div id="monthControls" class="filter-inputs" style="display:none;">
+                        <input type="number" id="filterMonth" min="1" max="12" placeholder="ม.ค.-ธ.ค." style="width: 45%;">
+                        <input type="number" id="filterYearM" min="2020" placeholder="ปี ค.ศ." style="width: 55%;">
+                    </div>
+
+                    <div id="yearControls" class="filter-inputs" style="display:none;">
+                        <label for="filterYearY">ปี:</label>
+                        <input type="number" id="filterYearY" min="2020" style="width: 100%;">
                     </div>
                 </div>
-                <div class="btn-group">
-                    <button class="btn" id="applyFilterBtn">กรองข้อมูล</button>
-                    <button class="btn" id="resetBtn" style="background:#6b7280;">รีเซ็ต</button>
-                    <button class="btn" id="exportBtn" style="background:#3498db;">CSV</button>
-                    <button class="btn" onclick="goBack()" style="background:#333;">กลับ</button>
-                </div>
+                
                 <div id="loadingIndicator">
-    <div class="spinner"></div> กำลังโหลดข้อมูล...
-</div>
+                    <div class="spinner"></div>
+                    <span>กำลังโหลดข้อมูล...</span>
+                </div>
+
+                <div class="btn-grid">
+                    <button class="btn" id="applyFilterBtn">กรองข้อมูล</button>
+                    <button class="btn btn-secondary" id="resetBtn">รีเซ็ต</button>
+                    <button class="btn btn-secondary" id="exportBtn">Export CSV</button>
+                    <button class="btn btn-secondary" onclick="goBack()">กลับหน้าหลัก</button>
+                </div>
+            </div>
         </header>
 
-        <section class="kpi">
+        <section class="kpi" aria-label="KPI summary">
             <div class="card">
                 <div class="title">ถุงแดงรวม</div>
                 <div class="value" id="totalRed">0</div>
-                <div class="compare" id="compareRed"></div>
+                <div class="compare" id="compareRed" style="font-size:11px; margin-top:4px;"></div>
             </div>
             <div class="card">
                 <div class="title">ถุงเขียวรวม</div>
                 <div class="value" id="totalGreen">0</div>
-                <div class="compare" id="compareGreen"></div>
+                <div class="compare" id="compareGreen" style="font-size:11px; margin-top:4px;"></div>
             </div>
             <div class="card">
                 <div class="title">ถุงดำรวม</div>
                 <div class="value" id="totalBlack">0</div>
-                <div class="compare" id="compareBlack"></div>
+                <div class="compare" id="compareBlack" style="font-size:11px; margin-top:4px;"></div>
             </div>
             <div class="card">
                 <div class="title">ถุงใส่เศษอาหารรวม</div>
                 <div class="value" id="totalFood">0</div>
-                <div class="compare" id="compareFood"></div>
+                <div class="compare" id="compareFood" style="font-size:11px; margin-top:4px;"></div>
             </div>
             <div class="card">
-                <div class="title">จำนวนจุดที่บันทึก</div>
+                <div class="title" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>จำนวนจุดที่บันทึก</span>
+                    <div id="perfInfoIcon" class="info-tooltip" style="display:none;">
+                        ⓘ
+                        <div class="tooltip-box">
+                            <div><b>WTD</b> = เทียบกับช่วงเดียวกันของสัปดาห์ก่อน</div>
+                            <div style="margin-top:6px;"><b>MTD</b> = เทียบกับช่วงเดียวกันของเดือนก่อน</div>
+                            <div style="margin-top:6px;"><b>YTD</b> = เทียบกับช่วงเดียวกันของปีก่อน</div>
+                            <div class="tooltip-note">ระบบใช้จำนวนวันเท่ากันในกรณีที่งวดยังไม่สิ้นสุด</div>
+                        </div>
+                    </div>
+                </div>
                 <div class="value" id="totalLocations">0</div>
-                <div class="compare" id="compareLocations"></div>
+                <div class="compare" id="compareLocations" style="font-size:11px; margin-top:4px;"></div>
             </div>
         </section>
 
         <section class="grid-two">
-            <div class="chart-wrap" id="barContainer" style="height: 350px;">
+            <div class="chart-wrap">
                 <canvas id="barChart"></canvas>
             </div>
-            <div class="chart-wrap">
-                <div class="pie-container">
+
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div class="chart-wrap chart-wrap-pie">
                     <canvas id="pieChart"></canvas>
                 </div>
-                <div id="bagSummary" style="font-size:13px; margin-top:10px; border-top:1px solid #eee; padding-top:10px; width: 100%;">
-                    -
+                <div class="card">
+                    <h3 style="margin:0 0 8px 0; font-size:13px;">📊 รายละเอียดสรุป (เทียบช่วงก่อนหน้า)</h3>
+                    <div id="bagSummary" style="font-size:12px;">
+                        -
+                    </div>
                 </div>
             </div>
         </section>
 
+        <!-- กล่องวันหยุด -->
+        <div class="holiday-wrap">
+            <div class="holiday-title">
+                📅 วันหยุด <span style="color:var(--muted);font-size:11px;font-weight:400;">(ไม่นับวันหยุดและวันอาทิตย์ใน % Perf.)</span>
+            </div>
+            <div class="holiday-list" id="holidayList">
+                -
+            </div>
+        </div>
+
         <div class="table-container">
-            <input class="search-box" id="searchInput" placeholder="ค้นหาชื่อพื้นที่..." />
-            <select id="bagFilter" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; margin-bottom:10px;">
-                <option value="">-- แสดงทุกประเภทถุง --</option>
-                <option value="red">ถุงแดง > 0</option>
-                <option value="green">ถุงเขียว > 0</option>
-                <option value="black">ถุงดำ > 0</option>
-                <option value="food">ถุงอาหาร > 0</option>
-            </select>
-            <div class="scroll-area">
+            <div class="tools">
+                <div class="search-box">
+                    <input class="search" id="searchInput" placeholder="ค้นหาชื่อพื้นที่..." />
+                    <select id="bagFilter">
+                        <option value="">-- แสดงทุกประเภทถุง --</option>
+                        <option value="red">ถุงแดง > 0</option>
+                        <option value="green">ถุงเขียว > 0</option>
+                        <option value="black">ถุงดำ > 0</option>
+                        <option value="food">ถุงอาหาร > 0</option>
+                    </select>
+                </div>
+                <div style="color:var(--muted);font-size:12px;text-align:right;">กรองแล้ว: <span id="rowsCount">0</span> แถว</div>
+            </div>
+
+            <div class="table-responsive">
                 <table id="dataTable">
                     <thead>
                         <tr>
+                            <th>หมายเลข</th>
                             <th>พื้นที่</th>
-                            <th style="color:#ef4444;">แดง</th>
-                            <th style="color:#10b981;">เขียว</th>
-                            <th style="color:#111827;">ดำ</th>
-                            <th style="color:#f59e0b;">อาหาร</th>
+                            <th>แดง</th>
+                            <th>เขียว</th>
+                            <th>ดำ</th>
+                            <th>อาหาร</th>
                             <th>วันที่/เวลา</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
-            <div style="text-align:center; padding:10px; font-size:12px; color:var(--muted);">
-                แสดงข้อมูล: <span id="rowsCount">0</span> แถว
-            </div>
         </div>
     </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbzoDaY-EPmqPUlNf_TQEeOZ7IqbEgfsUZ6-8ViMOAXZXVsm5AhRvWUgb2hV8XzT7yozxQ/exec';
-const HOLIDAY_API_URL = 'https://script.google.com/macros/s/AKfycbwTDXNro5EksK-e6C105jWE9iMGi72yWnF3Nqv9p1jf2gKRwJs9i6s4GIoqFVj8D9szGQ/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbz7IlAqh8Fey3V3mvVXcy7ZdpM-9NoAGXTCs03d8ZfBfALH2oYu2xlvrnXoKmlVS4OWow/exec';
+    const HOLIDAY_API_URL = 'https://script.google.com/macros/s/AKfycbwTDXNro5EksK-e6C105jWE9iMGi72yWnF3Nqv9p1jf2gKRwJs9i6s4GIoqFVj8D9szGQ/exec';
 
-let HOLIDAYS = [];
-let currentData = [];
-let filteredData = [];
-let previousData = [];
-let currentFullLabels = [];
-let pieChart, barChart;
+    let HOLIDAYS = [];
+    let currentData = [];
+    let previousData = [];
+    let filteredData = [];
+    let pieChart, barChart;
+    const LOCATION_PER_DAY = 35;
 
-const LOCATION_PER_DAY = 35;
+    // --- 1. Utility & Holiday Functions ---
+    function formatNumber(n) { return Number(n).toLocaleString('en-US'); }
 
-function formatNumber(n) {
-    return Number(n).toLocaleString('en-US');
-}
-
-// ================= โหลดวันหยุด =================
-async function loadHolidays() {
-    try {
-        const response = await fetch(HOLIDAY_API_URL);
-        const result = await response.json();
-
-        HOLIDAYS = result.data || [];
-
-        console.log("โหลดวันหยุดสำเร็จ", HOLIDAYS);
-
-    } catch (err) {
-        console.error("โหลดวันหยุดไม่สำเร็จ", err);
-    }
-}
-
-function isHoliday(date) {
-
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-
-    // วันอาทิตย์
-    if (date.getDay() === 0) {
-        return true;
+    async function loadHolidays() {
+        try {
+            const response = await fetch(HOLIDAY_API_URL);
+            const result = await response.json();
+            HOLIDAYS = result.data || [];
+            console.log("โหลดวันหยุดสำเร็จ", HOLIDAYS);
+        } catch (err) { console.error("โหลดวันหยุดไม่สำเร็จ", err); }
     }
 
-    // วันหยุดโรงงาน
-    return HOLIDAYS.some(h =>
-        Number(h.day) === day &&
-        Number(h.month) === month &&
-        Number(h.year) === year
-    );
-}
+    function isHoliday(date) {
+        if (date.getDay() === 0) return true; // วันอาทิตย์
+        return HOLIDAYS.some(h => 
+            Number(h.day) === date.getDate() && 
+            Number(h.month) === date.getMonth() + 1 && 
+            Number(h.year) === date.getFullYear()
+        );
+    }
 
-// ================= วันทำงาน =================
-function getWorkingDaysInMonth(year, month) {
+    function getWorkingDaysInRange(startDate, endDate) {
+        let count = 0;
+        let cur = new Date(startDate);
+        cur.setHours(0,0,0,0);
+        let last = new Date(endDate);
+        last.setHours(0,0,0,0);
+        
+        while (cur <= last) {
+            if (!isHoliday(cur)) count++;
+            cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+    }
 
-    let count = 0;
-    let days = new Date(year, month, 0).getDate();
+    function getWeekRange(year, week) {
+        const firstDayOfYear = new Date(year, 0, 1);
+        const daysOffset = (week - 1) * 7 - firstDayOfYear.getDay();
+        const start = new Date(year, 0, 1 + daysOffset);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        return { start, end };
+    }
 
-    for (let d = 1; d <= days; d++) {
+    // --- 2. Core Calculation Logic ---
+    function getComparisonCutoff(filterType, params) {
+        const now = new Date();
+        if (filterType === 'week') {
+            if(!params.week) return null;
+            const [y, w] = params.week.split('-W').map(Number);
+            const range = getWeekRange(y, w);
+            if (now >= range.start && now <= range.end) return now;
+        } else if (filterType === 'month') {
+            if (Number(params.month) === (now.getMonth() + 1) && Number(params.year) === now.getFullYear()) return now;
+        } else if (filterType === 'year') {
+            if (Number(params.year) === now.getFullYear()) return now;
+        }
+        return null;
+    }
 
-        let date = new Date(year, month - 1, d);
-
-        if (!isHoliday(date)) {
-            count++;
+    function updatePerfInfoIcon(filterType, params) {
+        const icon = document.getElementById('perfInfoIcon');
+        const cutoff = getComparisonCutoff(filterType, params);
+        if (cutoff && (filterType === 'week' || filterType === 'month' || filterType === 'year')) {
+            icon.style.display = 'inline-flex';
+        } else {
+            icon.style.display = 'none';
         }
     }
 
-    return count;
-}
+    function getMaxLocations(filterType, params, isCurrentPeriod = true) {
+        const now = new Date();
+        if (filterType === 'day') return LOCATION_PER_DAY;
 
-function getWorkingDaysInYear(year) {
-
-    let count = 0;
-
-    let days =
-        ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0)
-        ? 366
-        : 365;
-
-    for (let d = 1; d <= days; d++) {
-
-        let date = new Date(year, 0, d);
-
-        if (!isHoliday(date)) {
-            count++;
+        if (filterType === 'week') {
+            if(!params.week) return LOCATION_PER_DAY * 6;
+            const [y, w] = params.week.split('-W').map(Number);
+            const range = getWeekRange(y, w);
+            if (isCurrentPeriod && now >= range.start && now <= range.end) {
+                return LOCATION_PER_DAY * getWorkingDaysInRange(range.start, now);
+            }
+            return LOCATION_PER_DAY * getWorkingDaysInRange(range.start, range.end);
         }
-    }
 
-    return count;
-}
+        if (filterType === 'month') {
+            const m = Number(params.month);
+            const y = Number(params.year);
+            const start = new Date(y, m - 1, 1);
+            const end = new Date(y, m, 0);
+            if (isCurrentPeriod && now >= start && now <= end) {
+                return LOCATION_PER_DAY * getWorkingDaysInRange(start, now);
+            }
+            return LOCATION_PER_DAY * getWorkingDaysInRange(start, end);
+        }
 
-function getMaxLocations(filterType, params) {
-
-    const now = new Date();
-
-    // ===== รายวัน =====
-    if (filterType === 'day') {
+        if (filterType === 'year') {
+            const y = Number(params.year);
+            const start = new Date(y, 0, 1);
+            const end = new Date(y, 11, 31);
+            if (isCurrentPeriod && now >= start && now <= end) {
+                return LOCATION_PER_DAY * getWorkingDaysInRange(start, now);
+            }
+            return LOCATION_PER_DAY * getWorkingDaysInRange(start, end);
+        }
         return LOCATION_PER_DAY;
     }
 
-    // ===== รายเดือน =====
-    if (filterType === 'month') {
+    // --- 3. Data Management ---
+    async function fetchSinglePeriod(filterType, params) {
+        const urlParams = new URLSearchParams();
+        urlParams.append('type', filterType);
+        if (filterType === 'day') {
+            if(!params.day) return [];
+            const [y, m, d] = params.day.split('-');
+            urlParams.append('date', `${d}/${m}/${y}`);
+        } else if (filterType === 'week') {
+            if(!params.week) return [];
+            urlParams.append('week', params.week);
+        } else if (filterType === 'month') {
+            urlParams.append('month', params.month);
+            urlParams.append('year', params.year);
+        } else if (filterType === 'year') urlParams.append('year', params.year);
 
-        const month = Number(params.month);
-        const year = Number(params.year);
-
-        let lastDay;
-
-        // ถ้าเป็นเดือนปัจจุบัน
-        if (
-            month === (now.getMonth() + 1) &&
-            year === now.getFullYear()
-        ) {
-            lastDay = now.getDate();
-        }
-        else {
-            lastDay = getDaysInMonth(year, month);
-        }
-
-        let workingDays = 0;
-
-        for (let d = 1; d <= lastDay; d++) {
-
-            const date = new Date(year, month - 1, d);
-
-            if (!isHoliday(date)) {
-                workingDays++;
+        try {
+            const response = await fetch(`${API_URL}?${urlParams.toString()}`);
+            const result = await response.json();
+            if (result.status === 'success') {
+                return result.data.map(row => ({
+                    id: row[0], area: row[1], red: Number(row[2] || 0), green: Number(row[3] || 0),
+                    black: Number(row[4] || 0), food: Number(row[5] || 0), rawDate: row[6],
+                    datetime: row[6] ? new Date(row[6]).toLocaleString('th-TH', {hour12:false, dateStyle:'short', timeStyle:'short'}) : ''
+                }));
             }
-        }
-
-        return LOCATION_PER_DAY * workingDays;
-    }
-
-    // ===== รายปี =====
-    if (filterType === 'year') {
-
-        const year = Number(params.year);
-
-        let endDate;
-
-        // ถ้าเป็นปีปัจจุบัน
-        if (year === now.getFullYear()) {
-            endDate = now;
-        }
-        else {
-            endDate = new Date(year, 11, 31);
-        }
-
-        let workingDays = 0;
-
-        const startDate = new Date(year, 0, 1);
-
-        for (
-            let d = new Date(startDate);
-            d <= endDate;
-            d.setDate(d.getDate() + 1)
-        ) {
-
-            if (!isHoliday(d)) {
-                workingDays++;
-            }
-        }
-
-        return LOCATION_PER_DAY * workingDays;
-    }
-
-    return LOCATION_PER_DAY;
-}
-
-// ================= เปรียบเทียบ =================
-function getTrendHtml(current, previous) {
-
-    if (previous === 0) {
-        return current > 0
-            ? `<span class="up">▲ New</span>`
-            : `-`;
-    }
-
-    const diffPercent =
-        Math.round(((current - previous) / previous) * 100);
-
-    if (diffPercent === 0) {
-        return `0%`;
-    }
-
-    const arrow = diffPercent > 0 ? '▲' : '▼';
-    const className = diffPercent > 0 ? 'up' : 'down';
-
-    return `
-        <span class="${className}">
-            ${arrow} ${Math.abs(diffPercent)}%
-        </span>
-    `;
-}
-
-function renderBagSummary(totals, prevTotals) {
-
-    const totalAll =
-        totals.red +
-        totals.green +
-        totals.black +
-        totals.food;
-
-    const prevTotalAll =
-        prevTotals.red +
-        prevTotals.green +
-        prevTotals.black +
-        prevTotals.food;
-
-    const html = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            <div>ถุงแดง: ${formatNumber(totals.red)} ${getTrendHtml(totals.red, prevTotals.red)}</div>
-            <div>ถุงดำ: ${formatNumber(totals.black)} ${getTrendHtml(totals.black, prevTotals.black)}</div>
-            <div>ถุงเขียว: ${formatNumber(totals.green)} ${getTrendHtml(totals.green, prevTotals.green)}</div>
-            <div>ถุงอาหาร: ${formatNumber(totals.food)} ${getTrendHtml(totals.food, prevTotals.food)}</div>
-        </div>
-
-        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #eee;font-weight:700;">
-            รวม: ${formatNumber(totalAll)} ใบ
-            ${getTrendHtml(totalAll, prevTotalAll)}
-        </div>
-    `;
-
-    document.getElementById('bagSummary').innerHTML = html;
-}
-
-// ================= งวดก่อนหน้า =================
-function getPreviousPeriodParams(filterType, currentParams) {
-
-    if (filterType === 'day' && currentParams.day) {
-
-        let [y, m, d] =
-            currentParams.day.split('-').map(Number);
-
-        let date = new Date(y, m - 1, d);
-
-        date.setDate(date.getDate() - 1);
-
-        // ถ้าเป็นวันอาทิตย์ให้ถอยอีก 1 วัน
-        if (date.getDay() === 0) {
-            date.setDate(date.getDate() - 1);
-        }
-
-        return {
-            day:
-                `${date.getFullYear()}-` +
-                `${String(date.getMonth() + 1).padStart(2, '0')}-` +
-                `${String(date.getDate()).padStart(2, '0')}`
-        };
-    }
-
-    else if (filterType === 'month') {
-
-        let m = parseInt(currentParams.month) - 1;
-        let y = parseInt(currentParams.year);
-
-        if (m === 0) {
-            m = 12;
-            y -= 1;
-        }
-
-        return {
-            month: m.toString(),
-            year: y.toString()
-        };
-    }
-
-    else if (filterType === 'year') {
-
-        return {
-            year: (parseInt(currentParams.year) - 1).toString()
-        };
-    }
-
-    return null;
-}
-
-// ================= โหลดข้อมูล =================
-async function fetchSinglePeriod(filterType, params) {
-
-    const urlParams = new URLSearchParams();
-
-    urlParams.append('type', filterType);
-
-    if (filterType === 'day') {
-
-        const [y, m, d] = params.day.split('-');
-
-        urlParams.append('date', `${d}/${m}/${y}`);
-
-    } else if (filterType === 'month') {
-
-        urlParams.append('month', params.month);
-        urlParams.append('year', params.year);
-
-    } else {
-
-        urlParams.append('year', params.year);
-    }
-
-    try {
-
-        const res = await fetch(
-            `${API_URL}?${urlParams.toString()}`
-        );
-
-        const result = await res.json();
-
-        return result.status === 'success'
-            ? result.data.map(row => ({
-                id: row[0],
-                area: row[1],
-                red: Number(row[2] || 0),
-                green: Number(row[3] || 0),
-                black: Number(row[4] || 0),
-                food: Number(row[5] || 0),
-                datetime: row[6]
-            }))
-            : [];
-
-    } catch (e) {
-
-        console.error(e);
-
+        } catch (err) { console.error(err); }
         return [];
     }
-}
 
-async function fetchData(filterType, params) {
-
-    document.getElementById('loadingIndicator').style.display = 'block';
-
-    const prevParams =
-        getPreviousPeriodParams(filterType, params);
-
-    const [curr, prev] = await Promise.all([
-
-        fetchSinglePeriod(filterType, params),
-
-        prevParams
-            ? fetchSinglePeriod(filterType, prevParams)
-            : Promise.resolve([])
-    ]);
-
-    currentData = curr;
-    previousData = prev;
-
-    document.getElementById('loadingIndicator').style.display = 'none';
-}
-
-// ================= Render เปรียบเทียบ =================
-function renderComparison(
-    elementId,
-    current,
-    previous,
-    filterType,
-    isLoc = false,
-    maxV = null
-) {
-
-    const diff = current - previous;
-
-    const el = document.getElementById(elementId);
-
-    let timeLabel =
-        filterType === 'day'
-        ? 'เมื่อวาน'
-        : (
-            filterType === 'month'
-            ? 'เดือนที่แล้ว'
-            : 'ปีก่อน'
-        );
-
-    if (diff === 0) {
-
-        el.innerHTML =
-            `<span class="same">เท่าเดิม</span> เทียบกับ ${timeLabel}`;
-
-        return;
+    function getPreviousParams(filterType, params) {
+        if (filterType === 'day') {
+            if(!params.day) return null;
+            let d = new Date(params.day);
+            d.setDate(d.getDate() - 1);
+            if (d.getDay() === 0) d.setDate(d.getDate() - 1);
+            return { day: d.toISOString().split('T')[0] };
+        }
+        if (filterType === 'week') {
+            if(!params.week) return null;
+            let [y, w] = params.week.split('-W').map(Number);
+            if (--w <= 0) { y--; w = 52; }
+            return { week: `${y}-W${String(w).padStart(2, '0')}` };
+        }
+        if (filterType === 'month') {
+            let m = parseInt(params.month), y = parseInt(params.year);
+            if (--m <= 0) { m = 12; y--; }
+            return { month: m.toString(), year: y.toString() };
+        }
+        if (filterType === 'year') return { year: (parseInt(params.year) - 1).toString() };
+        return null;
     }
 
-    let arrow = diff > 0 ? '▲' : '▼';
-
-    let sign = diff > 0 ? '+' : '';
-
-    let className =
-        isLoc
-        ? (diff > 0 ? 'down' : 'up')
-        : (diff > 0 ? 'up' : 'down');
-
-    const diffPercent = maxV
-        ? Math.round((Math.abs(diff) / maxV) * 100)
-        : (
-            previous > 0
-            ? Math.round((Math.abs(diff) / previous) * 100)
-            : null
-        );
-
-    const pText =
-        diffPercent !== null
-        ? ` (${sign}${diffPercent}%)`
-        : '';
-
-    el.innerHTML = `
-        <span class="${className}">
-            ${arrow} ${sign}${formatNumber(Math.abs(diff))}${pText}
-        </span>
-        เทียบกับ ${timeLabel}
-    `;
-}
-
-// ================= Render =================
-function computeAndRender(data, previousData) {
-
-    const uniqueLocations = new Set(
-
-        data.map(r => {
-
-            const dateOnly = r.datetime
-                ? new Date(r.datetime).toLocaleDateString('th-TH')
-                : '';
-
-            return `${r.area}_${dateOnly}`;
-        })
-
-    ).size;
-
-    const totals = data.reduce((acc, r) => {
-
-        acc.red += r.red;
-        acc.green += r.green;
-        acc.black += r.black;
-        acc.food += r.food;
-
-        return acc;
-
-    }, {
-        red: 0,
-        green: 0,
-        black: 0,
-        food: 0,
-        locations: uniqueLocations
-    });
-
-    const prevUniqueLocations = new Set(
-
-        previousData.map(r => {
-
-            const dateOnly = r.datetime
-                ? new Date(r.datetime).toLocaleDateString('th-TH')
-                : '';
-
-            return `${r.area}_${dateOnly}`;
-        })
-
-    ).size;
-
-    const prevTotals = previousData.reduce((acc, r) => {
-
-        acc.red += r.red;
-        acc.green += r.green;
-        acc.black += r.black;
-        acc.food += r.food;
-
-        return acc;
-
-    }, {
-        red: 0,
-        green: 0,
-        black: 0,
-        food: 0,
-        locations: prevUniqueLocations
-    });
-
-    document.getElementById('totalRed').innerText =
-        formatNumber(totals.red);
-
-    document.getElementById('totalGreen').innerText =
-        formatNumber(totals.green);
-
-    document.getElementById('totalBlack').innerText =
-        formatNumber(totals.black);
-
-    document.getElementById('totalFood').innerText =
-        formatNumber(totals.food);
-
-    const filterType =
-        document.getElementById('filterType').value;
-
-    const params = {
-        day: document.getElementById('filterDay').value,
-        month: document.getElementById('filterMonth').value,
-        year:
-            filterType === 'month'
-            ? document.getElementById('filterYearM').value
-            : document.getElementById('filterYearY').value
-    };
-
-    const maxL =
-        getMaxLocations(filterType, params);
-
-    const locPercent = maxL
-        ? Math.round((totals.locations / maxL) * 100)
-        : 0;
-
-    document.getElementById('totalLocations').innerText =
-        `${totals.locations} (${locPercent}%)`;
-
-    renderComparison('compareRed', totals.red, prevTotals.red, filterType);
-    renderComparison('compareGreen', totals.green, prevTotals.green, filterType);
-    renderComparison('compareBlack', totals.black, prevTotals.black, filterType);
-    renderComparison('compareFood', totals.food, prevTotals.food, filterType);
-    renderComparison('compareLocations', totals.locations, prevTotals.locations, filterType, true, maxL);
-
-    renderBagSummary(totals, prevTotals);
-
-    const tbody =
-        document.querySelector('#dataTable tbody');
-
-    tbody.innerHTML = '';
-
-    data.forEach(r => {
-
-        const tr = document.createElement('tr');
-
-        let dtStr = r.datetime
-            ? new Date(r.datetime).toLocaleString(
-                'th-TH',
-                {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }
-            )
-            : '-';
-
-        tr.innerHTML = `
-            <td style="font-weight:600;">${r.area}</td>
-            <td style="color:#ef4444;font-weight:700;">${r.red}</td>
-            <td style="color:#10b981;font-weight:700;">${r.green}</td>
-            <td style="color:#111827;font-weight:700;">${r.black}</td>
-            <td style="color:#f59e0b;font-weight:700;">${r.food}</td>
-            <td class="time-col">${dtStr}</td>
-        `;
-
-        tbody.appendChild(tr);
-    });
-
-    document.getElementById('rowsCount').innerText =
-        data.length;
-
-    updateCharts(data, totals);
-}
-
-// ================= Charts =================
-function createCharts() {
-
-    // Bar Chart
-    barChart = new Chart(
-        document.getElementById('barChart').getContext('2d'),
-        {
-            type: 'bar',
-
-            data: {
-                labels: [],
-                datasets: [
-                    {
-                        label: 'แดง',
-                        data: [],
-                        backgroundColor: '#ef4444',
-                        stack: 's1'
-                    },
-                    {
-                        label: 'เขียว',
-                        data: [],
-                        backgroundColor: '#10b981',
-                        stack: 's1'
-                    },
-                    {
-                        label: 'ดำ',
-                        data: [],
-                        backgroundColor: '#111827',
-                        stack: 's1'
-                    },
-                    {
-                        label: 'อาหาร',
-                        data: [],
-                        backgroundColor: '#f59e0b',
-                        stack: 's1'
-                    }
-                ]
-            },
-
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-
-                scales: {
-                    x: {
-                        stacked: true
-                    },
-
-                    y: {
-                        stacked: true,
-                        ticks: {
-                            font: {
-                                size: 11
-                            }
-                        }
-                    }
-                },
-
-                plugins: {
-
-                    legend: {
-                        display: false
-                    },
-
-                    tooltip: {
-                        enabled: true,
-
-                        callbacks: {
-                            title: (context) =>
-                                currentFullLabels[
-                                    context[0].dataIndex
-                                ]
-                        }
-                    }
-                }
-            }
-        }
-    );
-
-    // Pie Chart
-    pieChart = new Chart(
-        document.getElementById('pieChart').getContext('2d'),
-        {
-            type: 'doughnut',
-
-            data: {
-                labels: ['แดง', 'เขียว', 'ดำ', 'อาหาร'],
-
-                datasets: [{
-                    data: [0, 0, 0, 0],
-
-                    backgroundColor: [
-                        '#ef4444',
-                        '#10b981',
-                        '#111827',
-                        '#f59e0b'
-                    ],
-
-                    borderWidth: 0
-                }]
-            },
-
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        }
-    );
-}
-
-function updateCharts(data, totals) {
-
-    pieChart.data.datasets[0].data = [
-        totals.red,
-        totals.green,
-        totals.black,
-        totals.food
-    ];
-
-    pieChart.update();
-
-    const areaCounts = data.reduce((acc, r) => {
-
-        if (!acc[r.area]) {
-
-            acc[r.area] = {
-                red: 0,
-                green: 0,
-                black: 0,
-                food: 0
-            };
+    async function fetchData(filterType, params) {
+        document.getElementById('loadingIndicator').style.display = 'inline-flex';
+        document.getElementById('applyFilterBtn').disabled = true;
+
+        const prevParams = getPreviousParams(filterType, params);
+        const [currRaw, prevRaw] = await Promise.all([
+            fetchSinglePeriod(filterType, params),
+            prevParams ? fetchSinglePeriod(filterType, prevParams) : Promise.resolve([])
+        ]);
+
+        const cutoff = getComparisonCutoff(filterType, params);
+        let processedPrev = prevRaw;
+
+        if (cutoff && prevParams) {
+            let compareLimit = new Date(cutoff);
+            if (filterType === 'week') compareLimit.setDate(compareLimit.getDate() - 7);
+            else if (filterType === 'month') compareLimit.setMonth(compareLimit.getMonth() - 1);
+            else if (filterType === 'year') compareLimit.setFullYear(compareLimit.getFullYear() - 1);
+            processedPrev = prevRaw.filter(item => new Date(item.rawDate) <= compareLimit);
         }
 
-        acc[r.area].red += r.red;
-        acc[r.area].green += r.green;
-        acc[r.area].black += r.black;
-        acc[r.area].food += r.food;
+        currentData = currRaw;
+        previousData = processedPrev;
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('applyFilterBtn').disabled = false;
+    }
 
-        return acc;
+    // --- 4. Rendering & Visualization ---
+    function getTrendHtml(current, previous) {
+        if (previous === 0) return current > 0 ? `<span class="up">▲ New</span>` : `<span class="same">-</span>`;
+        const diffPercent = Math.round(((current - previous) / previous) * 100);
+        if (diffPercent === 0) return `<span class="same">0%</span>`;
+        const arrow = diffPercent > 0 ? '▲' : '▼';
+        const className = diffPercent > 0 ? 'up' : 'down';
+        return `<span class="${className}">${arrow} ${Math.abs(diffPercent)}%</span>`;
+    }
 
-    }, {});
+    function renderComparison(elementId, current, previous, filterType, isLocation = false) {
+        const diff = current - previous;
+        const el = document.getElementById(elementId);
+        
+        const params = {
+            day: document.getElementById('filterDay').value,
+            week: document.getElementById('filterWeek').value,
+            month: document.getElementById('filterMonth').value,
+            year: (filterType === 'month') ? document.getElementById('filterYearM').value : document.getElementById('filterYearY').value
+        };
+        const cutoff = getComparisonCutoff(filterType, params);
 
-    const sortedAreas = Object.keys(areaCounts)
+        let label = "";
+        if (filterType === 'day') {
+            label = "เมื่อวาน";
+        } else {
+            const isPartial = cutoff !== null;
+            if (filterType === 'week') label = isPartial ? "สัปดาห์ก่อน(WTD)" : "สัปดาห์ก่อน";
+            else if (filterType === 'month') label = isPartial ? "เดือนก่อน(MTD)" : "เดือนก่อน";
+            else if (filterType === 'year') label = isPartial ? "ปีก่อน(YTD)" : "ปีก่อน";
+        }
 
-        .sort((a, b) => {
+        if (diff === 0) { 
+            el.innerHTML = `<span style="color:#64748b;">คงที่ เทียบกับ ${label}</span>`; 
+            return; 
+        }
+        
+        let arrow = diff > 0 ? '▲' : '▼';
+        let className = isLocation ? (diff > 0 ? 'down' : 'up') : (diff > 0 ? 'up' : 'down');
+        const diffP = previous > 0 ? Math.round((Math.abs(diff) / previous) * 100) : 0;
+        
+        el.innerHTML = `
+            <div style="display: flex; flex-direction:column; gap:2px;">
+                <span class="${className}">
+                    ${arrow} ${diff > 0 ? '+' : ''}${formatNumber(diff)} (${diffP}%)
+                </span>
+                <span style="color: #64748b; font-size:10px;">เทียบ${label}</span>
+            </div>`;
+    }
 
-            const totalA =
-                areaCounts[a].red +
-                areaCounts[a].green +
-                areaCounts[a].black +
-                areaCounts[a].food;
+    function computeAndRender() {
+        const sum = (data) => data.reduce((acc, r) => {
+            acc.red += r.red; acc.green += r.green; acc.black += r.black; acc.food += r.food;
+            return acc;
+        }, { red: 0, green: 0, black: 0, food: 0 });
 
-            const totalB =
-                areaCounts[b].red +
-                areaCounts[b].green +
-                areaCounts[b].black +
-                areaCounts[b].food;
+        const totals = sum(filteredData);
+        const prevTotals = sum(previousData);
 
-            return totalB - totalA;
-        })
+        const countLoc = (data) => new Set(data.map(r => `${r.area}_${r.datetime.split(' ')[0]}`)).size;
+        totals.locations = countLoc(filteredData);
+        prevTotals.locations = countLoc(previousData);
 
-        .slice(0, 12);
-
-    currentFullLabels = sortedAreas;
-
-    const shortLabels =
-        currentFullLabels.map(label => {
-
-            return label.length > 12
-                ? label.substring(0, 12) + '...'
-                : label;
+        ['Red', 'Green', 'Black', 'Food'].forEach(color => {
+            const key = color.toLowerCase();
+            document.getElementById(`total${color}`).innerText = formatNumber(totals[key]);
+            renderComparison(`compare${color}`, totals[key], prevTotals[key], document.getElementById('filterType').value);
         });
 
-    barChart.data.labels = shortLabels;
+        // Bag Summary
+        const totalAll = totals.red + totals.green + totals.black + totals.food;
+        const prevTotalAll = prevTotals.red + prevTotals.green + prevTotals.black + prevTotals.food;
+        const percent = (v) => totalAll === 0 ? 0 : Math.round((v / totalAll) * 100);
 
-    barChart.data.datasets[0].data =
-        currentFullLabels.map(l => areaCounts[l].red);
+        document.getElementById('bagSummary').innerHTML = `
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:4px;">
+                <div>🟥 แดง: <b>${formatNumber(totals.red)}</b> (${percent(totals.red)}%) ${getTrendHtml(totals.red, prevTotals.red)}</div>
+                <div>⬛ ดำ: <b>${formatNumber(totals.black)}</b> (${percent(totals.black)}%) ${getTrendHtml(totals.black, prevTotals.black)}</div>
+                <div>🟩 เขียว: <b>${formatNumber(totals.green)}</b> (${percent(totals.green)}%) ${getTrendHtml(totals.green, prevTotals.green)}</div>
+                <div>🟨 อาหาร: <b>${formatNumber(totals.food)}</b> (${percent(totals.food)}%) ${getTrendHtml(totals.food, prevTotals.food)}</div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-weight:700; font-size:13px; display:flex; justify-content:space-between;">
+                <span>รวมทั้งหมด: ${formatNumber(totalAll)} ใบ</span> ${getTrendHtml(totalAll, prevTotalAll)}
+            </div>`;
 
-    barChart.data.datasets[1].data =
-        currentFullLabels.map(l => areaCounts[l].green);
+        // Performance
+        const filterType = document.getElementById('filterType').value;
+        const params = {
+            week: document.getElementById('filterWeek').value,
+            month: document.getElementById('filterMonth').value,
+            year: filterType === 'month' ? document.getElementById('filterYearM').value : document.getElementById('filterYearY').value
+        };
+        const maxLoc = getMaxLocations(filterType, params, true);
+        const perf = maxLoc > 0 ? Math.round((totals.locations / maxLoc) * 100) : 0;
 
-    barChart.data.datasets[2].data =
-        currentFullLabels.map(l => areaCounts[l].black);
+        document.getElementById('totalLocations').innerHTML = `
+            <div style="display:flex; align-items:baseline; gap:4px; flex-wrap:wrap;">
+                <span>${formatNumber(totals.locations)}</span>
+                <span style="color:#64748b; font-size:14px; font-weight:500;">/ ${formatNumber(maxLoc)}</span>
+                <span style="font-size:12px; color:${totals.locations >= prevTotals.locations ? '#16a34a' : '#dc2626'}; font-weight:700; margin-left:auto;">
+                    Perf. ${perf}%
+                </span>
+            </div>`;
+        renderComparison('compareLocations', totals.locations, prevTotals.locations, filterType, true);
 
-    barChart.data.datasets[3].data =
-        currentFullLabels.map(l => areaCounts[l].food);
-
-    const dynamicHeight =
-        Math.max(300, currentFullLabels.length * 35);
-
-    document.getElementById('barContainer').style.height =
-        dynamicHeight + 'px';
-
-    barChart.update();
-}
-
-// ================= Filter =================
-function applyClientFilters() {
-
-    const s =
-        document.getElementById('searchInput')
-        .value
-        .toLowerCase();
-
-    const f =
-        document.getElementById('bagFilter').value;
-
-    filteredData = currentData.filter(r => {
-
-        if (s && !r.area.toLowerCase().includes(s)) {
-            return false;
-        }
-
-        if (f && !(r[f] > 0)) {
-            return false;
-        }
-
-        return true;
-    });
-
-    computeAndRender(filteredData, previousData);
-}
-
-async function handleApplyFilter() {
-
-    const t =
-        document.getElementById('filterType').value;
-
-    const params = {
-        day: document.getElementById('filterDay').value,
-        month: document.getElementById('filterMonth').value,
-        year:
-            t === 'month'
-            ? document.getElementById('filterYearM').value
-            : document.getElementById('filterYearY').value
-    };
-
-    await fetchData(t, params);
-
-    applyClientFilters();
-}
-
-function switchFilterControls() {
-
-    const t =
-        document.getElementById('filterType').value;
-
-    document.getElementById('dayControls').style.display =
-        t === 'day' ? 'block' : 'none';
-
-    document.getElementById('monthControls').style.display =
-        t === 'month' ? 'flex' : 'none';
-
-    document.getElementById('yearControls').style.display =
-        t === 'year' ? 'block' : 'none';
-}
-
-// ================= Export CSV =================
-function exportCSV() {
-
-    if (filteredData.length === 0) {
-
-        alert("ไม่มีข้อมูลที่จะดาวน์โหลด");
-
-        return;
+        // Table Rendering
+        const tbody = document.querySelector('#dataTable tbody');
+        tbody.innerHTML = filteredData.map(r => `<tr><td>${r.id}</td><td style="font-weight:600;">${r.area}</td><td style="color:#ef4444">${r.red}</td><td style="color:#10b981">${r.green}</td><td style="color:#111827">${r.black}</td><td style="color:#f59e0b">${r.food}</td><td style="font-size:11px; color:#64748b;">${r.datetime}</td></tr>`).join('');
+        document.getElementById('rowsCount').innerText = filteredData.length;
+        updateCharts(filteredData, totals);
     }
 
-    let csvContent = "\uFEFF";
+    function createCharts() {
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        pieChart = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['ถุงแดง', 'ถุงเขียว', 'ถุงดำ', 'ถุงอาหาร'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#ef4444', '#10b981', '#1e293b', '#f59e0b'],
+                    borderWidth: 1
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                cutout: '65%', 
+                plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } 
+            }
+        });
 
-    csvContent +=
-        "พื้นที่,แดง,เขียว,ดำ,อาหาร,วันที่/เวลา\n";
+        const ctxBar = document.getElementById('barChart').getContext('2d');
+        barChart = new Chart(ctxBar, {
+            type: 'bar',
+            data: { labels: [], datasets: [
+                { label: 'ถุงแดง', data: [], stack: 'stack1', backgroundColor: '#ef4444' },
+                { label: 'ถุงเขียว', data: [], stack: 'stack1', backgroundColor: '#10b981' },
+                { label: 'ถุงดำ', data: [], stack: 'stack1', backgroundColor: '#1e293b' },
+                { label: 'ถุงอาหาร', data: [], stack: 'stack1', backgroundColor: '#f59e0b' }
+            ]},
+            options: { 
+                indexAxis: 'y', 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: { 
+                    x: { stacked: true, ticks: { font: { size: 10 } } }, 
+                    y: { stacked: true, ticks: { font: { size: 11, family: '"Noto Sans Thai"' } } } 
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
 
-    filteredData.forEach(r => {
+    function updateCharts(data, totals) {
+        pieChart.data.datasets[0].data = [totals.red, totals.green, totals.black, totals.food];
+        pieChart.update();
 
-        let dtStr = r.datetime
-            ? new Date(r.datetime).toLocaleString('th-TH')
-            : '-';
+        const areaCounts = data.reduce((acc, r) => {
+            if (!acc[r.area]) acc[r.area] = { red: 0, green: 0, black: 0, food: 0 };
+            acc[r.area].red += r.red; acc[r.area].green += r.green; acc[r.area].black += r.black; acc[r.area].food += r.food;
+            return acc;
+        }, {});
 
-        let row =
-            `"${r.area}",` +
-            `${r.red},` +
-            `${r.green},` +
-            `${r.black},` +
-            `${r.food},` +
-            `"${dtStr}"`;
+        // ดึงเฉพาะ Top 10 พื้นที่ เพื่อให้กราฟแท่งบนมือถือไม่ยาวเกินไปจนซ้อนกันและอ่านไม่รู้เรื่อง
+        const labels = Object.keys(areaCounts).sort((a, b) => {
+            const sum = obj => obj.red + obj.green + obj.black + obj.food;
+            return sum(areaCounts[b]) - sum(areaCounts[a]);
+        }).slice(0, 10);
 
-        csvContent += row + "\n";
+        barChart.data.labels = labels.map(l => l.length > 10 ? l.substring(0, 9) + '..' : l);
+        barChart.data.datasets[0].data = labels.map(l => areaCounts[l].red);
+        barChart.data.datasets[1].data = labels.map(l => areaCounts[l].green);
+        barChart.data.datasets[2].data = labels.map(l => areaCounts[l].black);
+        barChart.data.datasets[3].data = labels.map(l => areaCounts[l].food);
+        barChart.update();
+    }
+
+    // --- 5. UI Controls & Events ---
+    function switchFilterControls() {
+        const type = document.getElementById('filterType').value;
+        ['day', 'week', 'month', 'year'].forEach(t => {
+            document.getElementById(`${t}Controls`).style.display = type === t ? 'flex' : 'none';
+        });
+    }
+
+    function renderHolidayList() {
+        const container = document.getElementById('holidayList');
+        const wrapper = document.querySelector('.holiday-wrap');
+        const type = document.getElementById('filterType').value;
+        let holidays = [];
+
+        if (type === 'day') {
+            const val = document.getElementById('filterDay').value;
+            if(val) {
+                const d = new Date(val);
+                if (isHoliday(d)) {
+                    holidays.push({ text: d.toLocaleDateString('th-TH'), sunday: d.getDay() === 0 });
+                }
+            }
+        }
+        else if (type === 'week') {
+            const weekValue = document.getElementById('filterWeek').value;
+            if (weekValue) {
+                const [y, w] = weekValue.split('-W').map(Number);
+                const range = getWeekRange(y, w);
+                let cur = new Date(range.start);
+                while (cur <= range.end) {
+                    if (isHoliday(cur)) {
+                        holidays.push({ text: cur.toLocaleDateString('th-TH', {day:'numeric', month:'short'}), sunday: cur.getDay() === 0 });
+                    }
+                    cur.setDate(cur.getDate() + 1);
+                }
+            }
+        }
+        else if (type === 'month') {
+            const m = Number(document.getElementById('filterMonth').value);
+            const y = Number(document.getElementById('filterYearM').value);
+            if(m && y) {
+                const days = new Date(y, m, 0).getDate();
+                for (let i = 1; i <= days; i++) {
+                    const d = new Date(y, m - 1, i);
+                    if (isHoliday(d)) {
+                        holidays.push({ text: `${i} ม.ค.`, sunday: d.getDay() === 0 }); // ดัดแปลงให้อ่านสั้นลงบนมือถือ
+                    }
+                }
+            }
+        }
+        else if (type === 'year') {
+            const y = Number(document.getElementById('filterYearY').value);
+            if(y) {
+                for (let m = 0; m < 12; m++) {
+                    const days = new Date(y, m + 1, 0).getDate();
+                    for (let d = 1; d <= days; d++) {
+                        const date = new Date(y, m, d);
+                        if (HOLIDAYS.some(h => Number(h.day) === date.getDate() && Number(h.month) === date.getMonth() + 1 && Number(h.year) === date.getFullYear())) {
+                            holidays.push({ text: date.toLocaleDateString('th-TH', {day:'numeric', month:'short'}), sunday: false });
+                        }
+                    }
+                }
+            }
+        }
+
+        wrapper.style.display = (holidays.length > 0 || type !== 'day') ? 'block' : 'none';
+        container.innerHTML = holidays.length
+            ? holidays.map(h => `<div class="holiday-item ${h.sunday ? 'holiday-sunday' : 'holiday-normal'}">${h.text}</div>`).join('')
+            : '<div style="color:#64748b; font-size:12px;">ไม่มีวันหยุด</div>';
+    }
+
+    async function handleApplyFilter() {
+        const type = document.getElementById('filterType').value;
+        const params = {
+            day: document.getElementById('filterDay').value,
+            week: document.getElementById('filterWeek').value,
+            month: document.getElementById('filterMonth').value,
+            year: type === 'month' ? document.getElementById('filterYearM').value : document.getElementById('filterYearY').value
+        };
+        await fetchData(type, params);
+        applyClientFilters();
+        renderHolidayList();
+        updatePerfInfoIcon(type, params);
+    }
+
+    function applyClientFilters() {
+        const search = document.getElementById('searchInput').value.trim().toLowerCase();
+        const bag = document.getElementById('bagFilter').value;
+        filteredData = currentData.filter(r => {
+            if (search && !r.area.toLowerCase().includes(search)) return false;
+            if (bag && !(r[bag] > 0)) return false;
+            return true;
+        });
+        computeAndRender();
+    }
+
+    function setInitialValues(now) {
+        document.getElementById('filterDay').value = now.toISOString().split('T')[0];
+        document.getElementById('filterMonth').value = now.getMonth() + 1;
+        document.getElementById('filterYearM').value = now.getFullYear();
+        document.getElementById('filterYearY').value = now.getFullYear();
+        const start = new Date(now.getFullYear(), 0, 1);
+        const week = Math.ceil((((now - start) / 86400000) + start.getDay() + 1) / 7);
+        document.getElementById('filterWeek').value = `${now.getFullYear()}-W${String(week).padStart(2, '0')}`;
+        document.getElementById('filterType').value = 'day';
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        setInitialValues(new Date());
+        await loadHolidays();
+        createCharts();
+        switchFilterControls();
+        handleApplyFilter();
+
+        document.getElementById('filterType').addEventListener('change', () => { switchFilterControls(); renderHolidayList(); });
+        document.getElementById('applyFilterBtn').addEventListener('click', handleApplyFilter);
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(window._searchT);
+            window._searchT = setTimeout(applyClientFilters, 200);
+        });
+        document.getElementById('bagFilter').addEventListener('change', applyClientFilters);
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            setInitialValues(new Date());
+            document.getElementById('searchInput').value = '';
+            document.getElementById('bagFilter').value = '';
+            switchFilterControls();
+            handleApplyFilter();
+        });
     });
 
-    const blob = new Blob(
-        [csvContent],
-        {
-            type: 'text/csv;charset=utf-8;'
-        }
-    );
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-
-    const type =
-        document.getElementById('filterType').value;
-
-    link.setAttribute("href", url);
-
-    link.setAttribute(
-        "download",
-        `Waste_Report_${type}_${new Date().getTime()}.csv`
-    );
-
-    link.style.visibility = 'hidden';
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-}
-
-// ================= Start =================
-window.addEventListener('DOMContentLoaded', async () => {
-
-    const now = new Date();
-
-    document.getElementById('filterDay').value =
-        now.toISOString().split('T')[0];
-
-    document.getElementById('filterMonth').value =
-        now.getMonth() + 1;
-
-    document.getElementById('filterYearM').value =
-        now.getFullYear();
-
-    document.getElementById('filterYearY').value =
-        now.getFullYear();
-
-    await loadHolidays();
-
-    createCharts();
-
-    switchFilterControls();
-
-    handleApplyFilter();
-
-    document.getElementById('filterType')
-        .addEventListener('change', switchFilterControls);
-
-    document.getElementById('applyFilterBtn')
-        .addEventListener('click', handleApplyFilter);
-
-    document.getElementById('searchInput')
-        .addEventListener('input', applyClientFilters);
-
-    document.getElementById('bagFilter')
-        .addEventListener('change', applyClientFilters);
-
-    document.getElementById('resetBtn')
-        .addEventListener('click', () => location.reload());
-
-    document.getElementById('exportBtn')
-        .addEventListener('click', exportCSV);
-});
-
-// ================= Back =================
-function goBack() {
-
-    window.location.href =
-        "https://ssi-building.github.io/WasteCheck/Dashboard-mobile.html";
-}
+    function exportCSV() {
+        const rows = [['หมายเลข', 'พื้นที่', 'ถุงแดง', 'ถุงเขียว', 'ถุงดำ', 'ถุงอาหาร', 'วันที่']];
+        filteredData.forEach(r => rows.push([r.id, r.area, r.red, r.green, r.black, r.food, r.datetime]));
+        const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `waste_report_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+    }
+    document.getElementById('exportBtn').addEventListener('click', exportCSV);
+  
+    function goBack() {
+        window.location.href = 'https://ssi-building.github.io/WasteCheck/Dashboard.html';
+    }
 </script>
 </body>
 </html>
