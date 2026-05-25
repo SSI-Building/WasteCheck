@@ -374,11 +374,31 @@
     min-width:0;
     width:100%;
 }
-select,
-input{
-    -webkit-appearance:none;
-    appearance:none;
+/* ลบ select ออกจากกลุ่มนี้ และคงไว้เฉพาะ input */
+input {
+    -webkit-appearance: none;
+    appearance: none;
 }
+
+/* เพิ่มส่วนนี้เข้าไปใหม่สำหรับแก้ปัญหา LINE Browser */
+select {
+    -webkit-appearance: auto;
+    appearance: auto;
+    cursor: pointer; /* ช่วยให้ LINE Webview ตรวจจับการทัชได้ดีขึ้น */
+    background-color: #fff;
+}
+
+canvas {
+    pointer-events: none;
+}
+.control-row {
+    flex-wrap: wrap;
+}
+.filter-inputs {
+    min-width: 0;
+    width: 100%;
+}
+
     </style>
 </head>
 <body>
