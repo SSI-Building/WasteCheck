@@ -2,12 +2,12 @@
 <html lang="th">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Waste Performance Dashboard</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 
-       <style>
+    <style>
         :root{
             --bg:#f1f5f9;
             --card:#ffffff;
@@ -44,8 +44,8 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 
             /* เพิ่ม */
-            position: relative;
-            z-index: 9999;
+            position: static;
+            z-index:auto;
         }
         header h1{
             margin:0;
@@ -75,7 +75,7 @@
             padding: 10px 12px;
             border-radius: 8px;
             border: 1px solid var(--border);
-            font-size: 14px;
+            font-size: 16px;
             background-color: #fff;
             color: var(--text-main);
             outline: none;
@@ -363,6 +363,22 @@
             .search { width: 220px; }
             .tools select { width: auto; }
         }
+        canvas{
+    pointer-events:none;
+}
+.control-row{
+    flex-wrap: wrap;
+}
+
+.filter-inputs{
+    min-width:0;
+    width:100%;
+}
+select,
+input{
+    -webkit-appearance:none;
+    appearance:none;
+}
     </style>
 </head>
 <body>
@@ -383,7 +399,7 @@
                     </div>
 
                     <div id="weekControls" class="filter-inputs" style="display:none;">
-                        <input type="week" id="filterWeek" />
+                        <select id="filterWeek"></select>
                     </div>
                     
                     <div id="monthControls" class="filter-inputs" style="display:none;">
@@ -990,9 +1006,16 @@
         document.getElementById('filterYearM').value = now.getFullYear();
         document.getElementById('filterYearY').value = now.getFullYear();
         const start = new Date(now.getFullYear(), 0, 1);
-        const week = Math.ceil((((now - start) / 86400000) + start.getDay() + 1) / 7);
-        document.getElementById('filterWeek').value = `${now.getFullYear()}-W${String(week).padStart(2, '0')}`;
-        document.getElementById('filterType').value = 'day';
+  const weekSelect = document.getElementById('filterWeek');
+
+weekSelect.innerHTML = '';
+
+for(let i=1;i<=53;i++){
+    const option = document.createElement('option');
+    option.value = `${now.getFullYear()}-W${String(i).padStart(2,'0')}`;
+    option.textContent = `สัปดาห์ ${i}`;
+    weekSelect.appendChild(option);
+}
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
