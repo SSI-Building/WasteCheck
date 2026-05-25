@@ -7,7 +7,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 
-    <style>
+       <style>
         :root{
             --bg:#f1f5f9;
             --card:#ffffff;
@@ -42,6 +42,10 @@
             padding: 14px;
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+
+            /* เพิ่ม */
+            position: relative;
+            z-index: 9999;
         }
         header h1{
             margin:0;
@@ -179,6 +183,7 @@
             position: relative;
             height: 280px;
             width: 100%;
+            z-index: 1;
         }
         .chart-wrap-pie {
             height: 240px;
@@ -186,6 +191,9 @@
         canvas{
             width:100% !important;
             height:100% !important; 
+
+            /* เพิ่ม */
+             touch-action: manipulation;
         }
         
         /* สไตล์ตารางแบบ Mobile Card สำหรับการแสดงผลบนมือถือ */
