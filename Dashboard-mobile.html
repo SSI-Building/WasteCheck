@@ -6,18 +6,24 @@
 <title>Map-WasteCheck (Mobile Optimized)</title>
 <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+<!-- 🌟 คลังสคริปต์ทำ DatePicker ล็อกฟอร์แมต dd/mm/yyyy เหมือนเว็บหลักบนคอมพิวเตอร์ -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+
 <style>
-    /* --- พื้นฐาน --- */
+    /* --- พื้นฐานจอมือถือ --- */
     body { margin:0; padding:0; font-family: sans-serif; overflow: hidden; background: #f0f0f0; }
     #map { position:absolute; top:0; bottom:0; width:100%; }
 
-    /* --- [Marker & Label - แบบต้นฉบับเป๊ะ] --- */
+    /* --- Marker & Label ถังขยะ (ต้นฉบับเป๊ะ) --- */
     .custom-text-label { background-color:#fff;color:#333;padding:0px 6px;border-radius:5px;font-size:12px;font-weight:bold;box-shadow:0 1px 4px rgba(0,0,0,0.3);white-space:nowrap;pointer-events:none;margin:0;}
     .red-dot-marker { width:10px;height:10px;background-color:#FF0000;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
     .green-dot-marker { width:10px;height:10px;background-color:#00FF00;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
     .yellow-dot-marker { width:10px;height:10px;background-color:#FFD700;border-radius:100%;border:1px solid white;box-shadow:0 0 1px rgba(0,0,0,0.5);pointer-events:auto; }
 
-    /* --- Top Controls --- */
+    /* --- ส่วนควบคุมด้านบน (Top Controls) --- */
     .top-controls {
         position: absolute; top: 12px; left: 12px; right: 12px;
         display: flex; gap: 8px; z-index: 50; pointer-events: none;
@@ -28,9 +34,18 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.15); pointer-events: auto;
         display: flex; align-items: center; border: 1px solid rgba(0,0,0,0.05);
     }
-    #datePicker { border: none; font-size: 14px; outline: none; font-weight: bold; background: transparent; color: #333; }
+    #datePicker { 
+        border: none; 
+        font-size: 15px; 
+        outline: none; 
+        font-weight: bold; 
+        background: transparent; 
+        color: #333; 
+        width: 105px; /* ล็อกพื้นที่สำหรับ dd/mm/yyyy */
+        cursor: pointer;
+    }
 
-    /* --- Floating Action Buttons (ซ่อนได้) --- */
+    /* --- ปุ่มลอยขวาด้านล่าง (Floating Action Buttons) --- */
     .fab-container {
         position: absolute; bottom: 30px; right: 15px;
         display: flex; flex-direction: column; gap: 12px; z-index: 100;
@@ -49,7 +64,7 @@
     .fab-reset { background: #fff; color: #333; }
     .fab-performance { background: #9b59b6; }
 
-    /* --- Bottom Sheet (Resizable Table) --- */
+    /* --- หน้าต่างสไลด์ข้อมูลจากขอบล่าง (Bottom Sheet Table) --- */
     #data-table-container {
         position: fixed; bottom: 0; left: 0; right: 0;
         background: white; border-top-left-radius: 25px; border-top-right-radius: 25px;
@@ -70,73 +85,73 @@
     #data-table th { padding: 12px 10px; text-align: left; background: #fff; color: #888; border-bottom: 2px solid #f9f9f9; }
     #data-table td { padding: 15px 10px; border-bottom: 1px solid #f1f1f1; color: #333; }
 
-    /* --- Loading Overlay --- */
+    /* --- พื้นหลังกำลังโหลดข้อมูล (Loading Overlay) --- */
     #loading-overlay {
         position:fixed; top:0; left:0; width:100%; height:100%;
         background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px);
         z-index:9999; display:none; flex-direction:column; align-items:center; justify-content:center;
     }
-    /* --- ใส่ CSS Loader ตัวใหม่ที่คุณเลือกมาตรงนี้ --- */
-.loader {
-  width: 70px;
-  aspect-ratio: 1;
-  background:
-    radial-gradient(farthest-side,#ffa516 90%,#0000) center/16px 16px,
-    radial-gradient(farthest-side,green   90%,#0000) bottom/12px 12px;
-  background-repeat: no-repeat;
-  animation: l17 1s infinite linear;
-  position: relative;
-  margin-bottom: 20px; /* เพิ่มระยะห่างจากตัวหนังสือเล็กน้อย */
-}
-.loader::before {    
-  content:"";
-  position: absolute;
-  width: 8px;
-  aspect-ratio: 1;
-  inset: auto 0 16px;
-  margin: auto;
-  background: #ff0000;
-  border-radius: 50%;
-  transform-origin: 50% calc(100% + 10px);
-  animation: inherit;
-  animation-duration: 0.5s;
-}
-@keyframes l17 {  
-  100%{transform: rotate(1turn)}
-}
+    
+    .loader {
+      width: 70px;
+      aspect-ratio: 1;
+      background:
+        radial-gradient(farthest-side,#ffa516 90%,#0000) center/16px 16px,
+        radial-gradient(farthest-side,green   90%,#0000) bottom/12px 12px;
+      background-repeat: no-repeat;
+      animation: l17 1s infinite linear;
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .loader::before {    
+      content:"";
+      position: absolute;
+      width: 8px;
+      aspect-ratio: 1;
+      inset: auto 0 16px;
+      margin: auto;
+      background: #ff0000;
+      border-radius: 50%;
+      transform-origin: 50% calc(100% + 10px);
+      animation: inherit;
+      animation-duration: 0.5s;
+    }
+    @keyframes l17 {  
+      100%{transform: rotate(1turn)}
+    }
 
+    .loading-text {
+        font-weight: bold;
+        color: #ffffff;
+        animation: fadePulse 1.5s infinite ease-in-out;
+    }
 
-.loading-text {
-    font-weight: bold;
-    color: #ffffff;
-    animation: fadePulse 1.5s infinite ease-in-out;
-}
-
-@keyframes fadePulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-}
-
-
+    @keyframes fadePulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
 
+<!-- แถบวันที่สไตล์เดียวกับเว็บหลัก แต่จัดตำแหน่งให้เหมาะกับจอมือถือ -->
 <div class="top-controls">
     <div id="datepicker-container">
         <i class="far fa-calendar-alt" style="margin-right:10px; color:#1e90ff;"></i>
-        <input type="date" id="datePicker">
+        <input type="text" id="datePicker" placeholder="เลือกวันที่" readonly>
     </div>
 </div>
 
+<!-- ชุดปุ่มซิ่งลอยตัว (FAB) -->
 <div class="fab-container" id="fab-box">
     <button class="fab fab-performance" title="แดชบอร์ด" onclick="location.href='https://ssi-building.github.io/WasteCheck/WastePerformance-mobile.html'"><i class="fas fa-chart-line"></i></button>
-    <button class="fab fab-reset" id="reset-view-btn" title="รีเซ็ต">⟳</button>
+    <button class="fab fab-reset" id="reset-view-btn" title="รีเซ็ตมุมมอง">⟳</button>
     <button class="fab fab-table" id="toggle-table-btn" title="ตารางข้อมูล"><i class="fas fa-list-ul"></i></button>
 </div>
 
+<!-- ตารางรูดสไลด์ขึ้นลงสไตล์ Mobile Bottom Sheet -->
 <div id="data-table-container">
     <div class="drag-handle" id="drag-zone">
         <div class="drag-line"></div>
@@ -162,18 +177,38 @@
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
 <script>
-// --- ค่าเริ่มต้นต้นฉบับ ---
+// --- การตั้งค่าแผนที่เริ่มต้นตามต้นฉบับ ---
 const targetLngLat = [99.535692, 11.231666];
 const desiredOffsetSouth = 0.0010;
 const desiredOffsetWest = -0.0010;
 const initialBearing = -45.6;
 const initialZoom = 15.58;
 
-// ตัวแปรเก็บ Marker ปัจจุบันเพื่อล้างออกเวลาอัปเดต
-let currentMarkers = [];
+// --- คลังตัวแปรเก็บข้อมูลระบบหลังบ้าน ---
+let rawLocations = [];
+let rawReports = [];
+let rawHolidays = [];    // เก็บบันทึกข้อมูลวันหยุดนักขัตฤกษ์เพื่อเอามาหักวันค้างงาน
+let currentMarkers = []; // อาเรย์ล้างหมุดเก่าเวลากดเลื่อนวันดู
 
-const datePicker = document.getElementById('datePicker');
-datePicker.value = new Date().toISOString().split('T')[0];
+const today = new Date();
+const yyyy = today.getFullYear();
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+const dd = String(today.getDate()).padStart(2, '0');
+
+// 🛠️ สั่งเปิดใช้งาน Flatpickr เพื่อล็อกฟอร์แมตปฏิทินให้แสดงผลเป็น dd/mm/yyyy เสมอทุกเครื่องมือถือ
+const fp = flatpickr("#datePicker", {
+    dateFormat: "d/m/Y",
+    defaultDate: today,
+    locale: "th",
+    disableMobile: "true", // บังคับปิดอินเทอร์เฟซติดเครื่องมือถือเพื่อไม่ให้รูปแบบการแสดงผลรวน
+    onChange: function(selectedDates, dateStr, instance) {
+        showLoading();
+        setTimeout(() => {
+            processAndRenderData();
+            hideLoading();
+        }, 300);
+    }
+});
 
 const map = new maplibregl.Map({
     container:'map',
@@ -188,7 +223,69 @@ const sheet = document.getElementById('data-table-container');
 const fabBox = document.getElementById('fab-box');
 const dragZone = document.getElementById('drag-zone');
 
-// --- ระบบ Resizable ---
+// --- ลอจิกนับวันหยุดถอดแบบจากสูตร Excel หน้าเว็บหลักคอมพิวเตอร์เป๊ะๆ ---
+function countNonWorkingDays(startDate, endDate, holidayList) {
+    let count = 0;
+    let current = new Date(startDate.getTime());
+    current.setDate(current.getDate() + 1); 
+
+    while (current <= endDate) {
+        const isSunday = current.getDay() === 0;
+        
+        const yStr = current.getFullYear();
+        const mStr = String(current.getMonth() + 1).padStart(2, '0');
+        const dStr = String(current.getDate()).padStart(2, '0');
+        const currentStr = `${yStr}-${mStr}-${dStr}`;
+        const isHoliday = holidayList.includes(currentStr);
+
+        if (isSunday || isHoliday) {
+            count++;
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    return count;
+}
+
+// --- ลอจิกการคำนวณสถานะค้างงานรายวันสดบนหน้าเว็บหลัก ---
+function calculateStatusOnClient(locationName, filterDateStr, reports, holidays) {
+    const filterDate = new Date(filterDateStr);
+    filterDate.setHours(0, 0, 0, 0); 
+    
+    let dayOfWeek = filterDate.getDay();
+    if (dayOfWeek === 0) dayOfWeek = 7; 
+    
+    const endOfDayLimit = new Date(filterDateStr + "T23:59:59");
+    const filteredReports = reports.filter(r => 
+        r.locationName === locationName && 
+        new Date(r.timestamp) <= endOfDayLimit
+    );
+    
+    if (filteredReports.length === 0) {
+        return "Critical";
+    }
+    
+    const maxReportTime = Math.max(...filteredReports.map(r => new Date(r.timestamp)));
+    const maxReportDate = new Date(maxReportTime);
+    maxReportDate.setHours(0, 0, 0, 0); 
+    
+    const rawDiffDays = Math.floor((filterDate.getTime() - maxReportDate.getTime()) / (1000 * 60 * 60 * 24)); 
+    
+    // หักวันอาทิตย์และวันหยุดนักขัตฤกษ์ที่ไม่มีเก็บขยะออก
+    const nonWorkingDays = countNonWorkingDays(maxReportDate, filterDate, holidays);
+    const diffDays = Math.max(0, rawDiffDays - nonWorkingDays);
+
+    if (dayOfWeek === 1) { 
+        if (diffDays <= 1) return "Complete";
+        else if (diffDays <= 2) return "Incomplete";
+        else return "Critical";
+    } else { 
+        if (diffDays === 0) return "Complete";
+        else if (diffDays < 2) return "Incomplete";
+        else return "Critical";
+    }
+}
+
+// --- ระบบสไลด์ปรับความสูงหน้าต่าง Bottom Sheet ดึงขยายได้ด้วยนิ้วรูด ---
 let isDragging = false;
 const startDragging = () => { isDragging = true; document.body.style.userSelect = 'none'; };
 const dragging = (e) => {
@@ -208,7 +305,7 @@ dragZone.addEventListener('touchstart', startDragging);
 window.addEventListener('touchmove', dragging);
 window.addEventListener('touchend', stopDragging);
 
-// --- ปุ่มเปิด/ปิด ---
+// --- การแสดงผลเปิดปิดหน้าต่างสไลด์ ---
 document.getElementById('toggle-table-btn').onclick = () => {
     sheet.style.display = 'flex';
     sheet.style.height = '50vh';
@@ -222,59 +319,74 @@ document.getElementById('close-table-btn').onclick = () => {
 function showLoading() { document.getElementById('loading-overlay').style.display='flex'; }
 function hideLoading() { document.getElementById('loading-overlay').style.display='none'; }
 
-// --- โหลดข้อมูล & Marker (ปรับปรุงให้ไม่รีเฟรชหน้า) ---
+// --- โหลดฐานข้อมูลหลักรอบเดียวจาก Google Apps Script พิกัด+ประวัติเก็บขยะ+วันหยุด ---
 const labelOffsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
 
 async function loadLocations(){
     try {
-        // 1. ล้าง Marker เดิมออกก่อน
-        currentMarkers.forEach(m => m.remove());
-        currentMarkers = [];
-
-        // 2. ดึงข้อมูลจาก API
-        const res = await fetch('https://script.google.com/macros/s/AKfycbzdYdBwnBhdixvyp4sjTwcSjSGUUM0TCXCVmABjt58A--TUOplaeXztj5yCp0Kt_6shAw/exec');
-        const locations = await res.json();
+        // ยิงไปที่ API เดียวกับหน้าหลักคอมพิวเตอร์เพื่อดึงโครงสร้างมัดรวมมาประมวลผลสด
+        const res = await fetch('https://script.google.com/macros/s/AKfycbzXLdcpjac_-ppIGz0BA_Ha_JzOaF2OCLxo55VVExmOmn6MIbLYWI_bH8Ei2QIU83Fc9A/exec');
+        const data = await res.json();
         
-        // 3. อัปเดตตาราง
-        const tableBody = document.querySelector('#data-table tbody');
-        tableBody.innerHTML = locations.map(loc => `<tr><td><b>${loc.id}</b></td><td>${loc.name}</td></tr>`).join('');
-
-        // 4. วาด Marker ใหม่
-        locations.forEach(loc => {
-            let colorClass = "red-dot-marker"; 
-            if (loc.status === "Complete") colorClass = "green-dot-marker";
-            else if (loc.status === "Incomplete") colorClass = "yellow-dot-marker";
-            else if (loc.status === "Critical") colorClass = "red-dot-marker";
-            
-            const markerDiv = document.createElement('div'); 
-            markerDiv.className = colorClass;
-            const m1 = new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
-
-            const labelDiv = document.createElement('div'); 
-            labelDiv.className='custom-text-label'; 
-            labelDiv.innerText = loc.id;
-            const pos = loc.labelPos?.toLowerCase();
-            const offset = labelOffsetMap[pos] || labelOffsetMap.top;
-            const m2 = new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:offset})
-                .setLngLat([loc.lng, loc.lat])
-                .setPopup(new maplibregl.Popup({offset:25}).setText(loc.name))
-                .addTo(map);
-
-            // เก็บเข้า Array เพื่อใช้ลบตอนอัปเดตครั้งต่อไป
-            currentMarkers.push(m1, m2);
-        });
-    } catch(err) { console.error("Error:", err); }
-    finally { hideLoading(); }
+        rawLocations = data.locations || data;
+        rawReports = data.reports || [];
+        rawHolidays = data.holidays || [];
+        
+        processAndRenderData();
+    } catch(err) { 
+        console.error("Error:", err); 
+        alert("เกิดข้อผิดพลาดในการโหลดข้อมูล");
+    } finally { 
+        hideLoading(); 
+    }
 }
 
-// เมื่อเปลี่ยนวันที่: ส่งค่าไป Script แล้วโหลดข้อมูลใหม่ (ไม่ Reload หน้า)
-datePicker.onchange = () => {
-    showLoading();
-    fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + datePicker.value)
-    .then(() => loadLocations());
-};
+// --- ฟังก์ชันหลักในการแกะข้อมูลและปักหมุดสด เปลี่ยนสีตามวันที่ผู้ใช้กดเลื่อนดูทันที ---
+function processAndRenderData() {
+    currentMarkers.forEach(m => m.remove());
+    currentMarkers = [];
 
-// เมื่อกดรีเซ็ต: กลับจุดเดิม และดึงข้อมูลใหม่ (ไม่ Reload หน้า)
+    // ดึงค่าวันที่ที่ซ่อนอยู่ในแผง Flatpickr แปลงให้อยู่ในรูปฟอร์แมตมาตรฐาน yyyy-mm-dd ไปเข้าสูตร
+    const selectedDate = flatpickr.formatDate(fp.selectedDates[0], "Y-m-d");
+
+    let finalLocations = [];
+    if (Array.isArray(rawLocations)) {
+        finalLocations = rawLocations.map(loc => {
+            const statusResult = rawReports.length > 0 ? calculateStatusOnClient(loc.name, selectedDate, rawReports, rawHolidays) : (loc.status || "Critical");
+            return { ...loc, status: statusResult };
+        });
+    }
+
+    // เขียนรายการชื่อพื้นที่ส่งเข้าตาราง Bottom Sheet บนมือถือ
+    const tableBody = document.querySelector('#data-table tbody');
+    tableBody.innerHTML = finalLocations.map(loc => `<tr><td><b>${loc.id}</b></td><td>${loc.name}</td></tr>`).join('');
+
+    // วาด Marker และข้อความป้ายกำกับสถานะ (Complete, Incomplete, Critical) สดๆ บนแผนที่
+    finalLocations.forEach(loc => {
+        let colorClass = "red-dot-marker"; 
+        if (loc.status === "Complete") colorClass = "green-dot-marker";
+        else if (loc.status === "Incomplete") colorClass = "yellow-dot-marker";
+        else if (loc.status === "Critical") colorClass = "red-dot-marker";
+        
+        const markerDiv = document.createElement('div'); 
+        markerDiv.className = colorClass;
+        const m1 = new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
+
+        const labelDiv = document.createElement('div'); 
+        labelDiv.className='custom-text-label'; 
+        labelDiv.innerText = loc.id;
+        const pos = loc.labelPos?.toLowerCase();
+        const offset = labelOffsetMap[pos] || labelOffsetMap.top;
+        const m2 = new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:offset})
+            .setLngLat([loc.lng, loc.lat])
+            .setPopup(new maplibregl.Popup({offset:25}).setText(loc.name))
+            .addTo(map);
+
+        currentMarkers.push(m1, m2);
+    });
+}
+
+// --- ปุ่มรีเซ็ตมุมมอง และตั้งวันกลับมาเป็นปัจจุบันของระบบ Flatpickr ---
 document.getElementById('reset-view-btn').onclick = () => {
     showLoading();
     map.easeTo({ 
@@ -283,8 +395,13 @@ document.getElementById('reset-view-btn').onclick = () => {
         bearing:initialBearing, 
         duration:800 
     });
-    datePicker.value = new Date().toISOString().split('T')[0];
-    loadLocations();
+    
+    fp.setDate(today); // คืนค่าตัวกล่องปฏิทินสากลกลับเป็นวันนี้
+    
+    setTimeout(() => {
+        processAndRenderData();
+        hideLoading();
+    }, 850);
 };
 
 map.on('load', () => { 
