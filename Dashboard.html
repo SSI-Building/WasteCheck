@@ -798,38 +798,111 @@ function updateDistances(){
 map.on('move',()=>{updateBearing();updateZoom();updateDistances();});
 
 
-// ----------------------
-// --- ส่วนการโหลดข้อมูล (ปรับปรุงใหม่) ---
-// ----------------------
+// ---------------------------------------------------------
+// 🛠️ ส่วนตัวแปรเก็บข้อมูล และ ระบบคำนวณสถานะสดบนหน้าเว็บ
+// ---------------------------------------------------------
+let rawLocations = [];  // เก็บข้อมูลพิกัดถังขยะดิบที่ดึงมา
+let rawReports = [];    // เก็บประวัติการบันทึกขยะทั้งหมดจาก ReportSheet
+let activeMarkers = []; // ตัวแปรอาร์เรย์ไว้สลัดล้างหมุดเก่าเวลาอัปเดตวันที่
 
-// ฟังก์ชันหลักสำหรับส่งวันที่และโหลดข้อมูลใหม่
-function sendDateToScript(dateValue) {
-    // 1. เปิดหน้าโหลดทันที
-    showLoading();
-    console.log("Start fetching for date:", dateValue);
-
-    // 2. ส่งวันที่ไปยัง GAS
-    fetch("https://script.google.com/macros/s/AKfycbwbKc57BpjSr2pZhpKl_UPu0LGGSfQ4x2B152n5lcovXoTMOLzaD_AkMIUc5m5ot-lFMg/exec?date=" + dateValue)
-        .then(res => res.json())
-        .then(data => {
-            console.log("Date sent successfully:", data);
-            // 3. เมื่อส่งวันที่เสร็จ ให้เรียกโหลด Locations ต่อทันที
-            // ต้อง return Promise เพื่อให้ finally ด้านล่างรอจนกว่า loadLocations จะเสร็จ
-            return loadLocations(); 
-        })
-        .catch(err => {
-            console.error("Error in process:", err);
-            alert("เกิดข้อผิดพลาดในการโหลดข้อมูล");
-        })
-        .finally(() => {
-            // 4. ปิดหน้าโหลดเสมอ ไม่ว่าจะสำเร็จหรือล้มเหลว (ทำงานหลัง loadLocations เสร็จ)
-            hideLoading();
-        });
+// ถอดรหัสคำนวณตามเงื่อนไขสูตร Excel เป๊ะๆ
+function calculateStatusOnClient(locationName, filterDateStr, reports) {
+    // 1. ตัดเศษเวลาทิ้ง (เทียบเท่าคำสั่ง INT ใน Excel)
+    const filterDate = new Date(filterDateStr);
+    filterDate.setHours(0, 0, 0, 0); 
+    
+    // 2. ตรวจสอบ WEEKDAY (1 = จันทร์, ..., 7 = อาทิตย์ ตามสไตล์ WEEKDAY(..., 2)=1)
+    let dayOfWeek = filterDate.getDay();
+    if (dayOfWeek === 0) dayOfWeek = 7; 
+    
+    // 3. ทำลอจิก COUNTIF และจำกัดช่วงข้อมูลไม่เกินวันที่เลือกดูปัจจุบัน (เทียบเท่าเงื่อนไข "<" & (INT(FillterDate!$A$1) + 1))
+    const endOfDayLimit = new Date(filterDateStr + "T23:59:59");
+    const filteredReports = reports.filter(r => 
+        r.locationName === locationName && 
+        new Date(r.timestamp) <= endOfDayLimit
+    );
+    
+    // เงื่อนไข COUNTIF = 0 -> ส่งค่ากลับเป็น Critical ทันที
+    if (filteredReports.length === 0) {
+        return "Critical";
+    }
+    
+    // 4. ค้นหาวันที่จัดเก็บล่าสุดของจุดนั้นๆ (เทียบเท่าลอจิก MAXIFS)
+    const maxReportTime = Math.max(...filteredReports.map(r => new Date(r.timestamp)));
+    const maxReportDate = new Date(maxReportTime);
+    maxReportDate.setHours(0, 0, 0, 0); // ตัดเศษเวลา (เทียบเท่า INT)
+    
+    // 5. หาผลต่างของวัน
+    const diffTime = filterDate.getTime() - maxReportDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
+    
+    // 6. แตกกิ่งตรวจสอบเงื่อนไขตามสูตร IF(WEEKDAY=1, ...)
+    if (dayOfWeek === 1) { // --- กรณีตรวจเช็คตรงกับ "วันจันทร์" ---
+        if (diffDays <= 1) {
+            return "Complete";
+        } else if (diffDays <= 2) {
+            return "Incomplete";
+        } else {
+            return "Critical";
+        }
+    } else { // --- กรณีเป็นวันอื่นๆ (อังคาร - อาทิตย์) ---
+        if (diffDays === 0) {
+            return "Complete";
+        } else if (diffDays < 2) {
+            return "Incomplete";
+        } else {
+            return "Critical";
+        }
+    }
 }
 
-// เมื่อผู้ใช้เปลี่ยนวันที่ใน DatePicker
+// ฟังก์ชันดึงข้อมูลรอบเดียวจากสคริปต์
+async function loadLocations() {
+    try {
+        showLoading();
+        // เรียกใช้ URL หลักเพื่อขอโครงสร้างข้อมูลใหม่ (ดึงพิกัด + ประวัติการเก็บขยะ)
+        const response = await fetch('https://script.google.com/macros/s/AKfycbzXLdcpjac_-ppIGz0BA_Ha_JzOaF2OCLxo55VVExmOmn6MIbLYWI_bH8Ei2QIU83Fc9A/exec');
+        const data = await response.json();
+        
+        // แยกข้อมูลเก็บลงตัวแปรบนหน้าเว็บ
+        rawLocations = data.locations || data; // ป้องกันในกรณีแรกโครงสร้างสคริปต์ยังไม่เปลี่ยน
+        rawReports = data.reports || [];
+        
+        // สั่งทำงานประมวลผลวาดหมุดทันที
+        processAndRenderData();
+    } catch (err) {
+        console.error('Error fetching locations:', err);
+        alert("เกิดข้อผิดพลาดในการโหลดข้อมูล");
+    } finally {
+        hideLoading();
+    }
+}
+
+// ฟังก์ชันคัดกรองแปลงสถานะตามวันที่ และสั่งสร้างแผนที่+ตารางใหม่
+function processAndRenderData() {
+    // ล้างหมุดตัวเดิมบนแผนที่ออกก่อนทั้งหมดป้องกันการปักซ้อนกัน
+    activeMarkers.forEach(marker => marker.remove());
+    activeMarkers = [];
+    
+    const selectedDate = datePicker.value;
+    
+    // ตรวจสอบเช็คว่าข้อมูลมาเป็นรูปแบบมัดรวมหรือยัง ถ้ามาแล้วให้คำนวณสดทันที
+    let finalLocations = [];
+    if (Array.isArray(rawLocations)) {
+        finalLocations = rawLocations.map(loc => {
+            // หากระบบดึงข้อมูลประวัติเรียบร้อย จะส่งไปประมวลผลลอจิก Excel บน JavaScript
+            const statusResult = rawReports.length > 0 ? calculateStatusOnClient(loc.name, selectedDate, rawReports) : (loc.status || "Critical");
+            return { ...loc, status: statusResult };
+        });
+    }
+
+    populateTable(finalLocations); 
+    addMarkers(finalLocations);
+}
+
+// เมื่อผู้ใช้เลือกสลับเปลี่ยนวันที่ใน DatePicker ให้ประมวลผลคำนวณใหม่สดทันทีบนหน้าเว็บ
 datePicker.addEventListener('change', function() {
-    sendDateToScript(this.value);
+    processAndRenderData();
 });
 
 
@@ -844,11 +917,9 @@ btn.addEventListener('click', e => {
         pitch:initialPitch,
         duration:800
     });
-    // รีเฟรชหน้า (ถ้าต้องการ)
     setTimeout(()=>{ location.reload(); }, 800); 
 });
-
-; this.container.appendChild(btn); return this.container;} onRemove(){} }
+this.container.appendChild(btn); return this.container;} onRemove(){} }
 class ToggleTableControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; this.btn=document.createElement('button'); this.btn.className='toggle-table-button'; this.btn.type='button'; this.btn.title='แสดง/ซ่อนตารางข้อมูล'; this.btn.innerHTML='<i class="fas fa-table"></i>'; this.btn.addEventListener('click',e=>{e.stopPropagation(); const container=document.getElementById('data-table-container'); if(container.style.display==='none'||container.style.display===''){ container.style.display='flex'; this.btn.classList.add('active'); this.btn.title='ซ่อนตารางข้อมูล'; } else { container.style.display='none'; this.btn.classList.remove('active'); this.btn.title='แสดงตารางข้อมูล'; } }); this.container.appendChild(this.btn); return this.container;} onRemove(){} }
 class AddLocationControl { onAdd(map){this.map=map;this.container=document.createElement('div');this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; this.btn=document.createElement('button'); this.btn.className='add-location-button'; this.btn.type='button'; this.btn.title='ทดสอบปักหมุด'; this.btn.innerHTML='<i class="fas fa-map-pin"></i>'; this.btn.addEventListener('click',e=>{e.stopPropagation(); document.getElementById('add-location-form-container').style.display='block';}); this.container.appendChild(this.btn); return this.container;} onRemove(){} }
 
@@ -859,8 +930,8 @@ map.on('load',()=>{
     map.addControl(new AddLocationControl(),'top-right');
     updateBearing(); updateZoom(); updateDistances();
     
-    // เรียกโหลดข้อมูลครั้งแรกเมื่อแผนที่พร้อม
-    sendDateToScript(datePicker.value);
+    // สั่งโหลดข้อมูลก้อนหลักรอบแรกเมื่อระบบแผนที่พร้อมทำงาน
+    loadLocations();
 });
 
 // ---------------- Table Drag ----------------
@@ -892,30 +963,11 @@ function dragElement(elmnt, container){
     }
 }
 
-// ---------------- Locations ----------------
-let locations=[];
+// ---------------- Populate Table ----------------
 const tableBody=document.querySelector('#data-table tbody');
 
-async function loadLocations(){
-    try{
-        const response=await fetch('https://script.google.com/macros/s/AKfycbzdYdBwnBhdixvyp4sjTwcSjSGUUM0TCXCVmABjt58A--TUOplaeXztj5yCp0Kt_6shAw/exec');
-        const data=await response.json();
-        locations=data;
-        populateTable(); addMarkers();
-    }catch(err){
-        console.error('Error fetching locations:',err);
-        // ถ้า error ก็ให้โยน error ออกไปเพื่อให้ finally ใน sendDateToScript ทำงานได้ถูกต้อง
-        throw err; 
-    }
-}
-
-function populateTable(){
-
-    tableBody.innerHTML='';
-
-    // สร้าง Header
+function populateTable(displayLocations){
     const table = document.getElementById('data-table');
-
     table.innerHTML = `
         <thead>
             <tr>
@@ -927,10 +979,8 @@ function populateTable(){
     `;
 
     const tbody = table.querySelector('tbody');
-
-    locations.forEach(loc => {
+    displayLocations.forEach(loc => {
         const row = tbody.insertRow();
-
         const idCell = row.insertCell();
         const nameCell = row.insertCell();
 
@@ -939,15 +989,12 @@ function populateTable(){
     });
 }
 
-// ---------------- Marker ----------------
+// ---------------- Marker Render ----------------
 const labelOffsetMap={ top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
 
-function addMarkers(){
-    // ลบ Marker เก่าออกก่อน (ถ้ามีฟังก์ชัน remove หรือ clear) - ในโค้ดเก่ายังไม่มีการ clear marker เก่า
-    // แต่เพื่อความปลอดภัยในการโหลดซ้ำ อาจจะต้องพิจารณาเพิ่มการ clearMarkers() ในอนาคต
-    
-    locations.forEach(loc => {
-        let colorClass = "red-dot-marker"; // default = Critical
+function addMarkers(displayLocations){
+    displayLocations.forEach(loc => {
+        let colorClass = "red-dot-marker"; // Default = Critical
 
         if (loc.status === "Complete") {
             colorClass = "green-dot-marker";
@@ -958,15 +1005,17 @@ function addMarkers(){
         }
       
         const markerDiv = document.createElement('div'); markerDiv.className = colorClass;
-        new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
+        const marker = new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
+        activeMarkers.push(marker); // เก็บประวัติหมุดเพื่อสั่งล้างออกรอบถัดไป
 
         const labelDiv = document.createElement('div'); labelDiv.className='custom-text-label'; labelDiv.innerText = loc.id;
         const pos = loc.labelPos?.toLowerCase();
         const offset = labelOffsetMap[pos] || labelOffsetMap.top;
-        new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:offset})
+        const labelMarker = new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:offset})
             .setLngLat([loc.lng, loc.lat])
             .setPopup(new maplibregl.Popup({offset:25}).setText(loc.name))
             .addTo(map);
+        activeMarkers.push(labelMarker);
     });
 }
 
@@ -977,9 +1026,10 @@ document.getElementById('add-location-form').onsubmit=function(e){
     const lat=parseFloat(document.getElementById('new-lat').value);
     const lng=parseFloat(document.getElementById('new-lng').value);
     const labelPos=document.getElementById('new-label-pos').value;
-    const newId=locations.length>0?Math.max(...locations.map(l=>l.id))+1:1;
-    locations.push({id:newId,name:name,lat:lat,lng:lng,labelPos:labelPos});
-    populateTable(); addMarkers();
+    const newId=rawLocations.length>0?Math.max(...rawLocations.map(l=>l.id))+1:1;
+    
+    rawLocations.push({id:newId,name:name,lat:lat,lng:lng,labelPos:labelPos});
+    processAndRenderData();
     document.getElementById('add-location-form-container').style.display='none';
 }
 
@@ -988,7 +1038,7 @@ document.getElementById('close-add-location-btn').onclick = ()=>{addContainer.st
 
 let previewMarker = null;
 
-// รีวิว
+// รีวิวพิกัดใหม่
 document.getElementById('preview-btn').onclick = function() {
     const lat = parseFloat(document.getElementById('new-lat').value);
     const lng = parseFloat(document.getElementById('new-lng').value);
@@ -997,7 +1047,7 @@ document.getElementById('preview-btn').onclick = function() {
     if(previewMarker) { previewMarker.forEach(m => m.remove()); }
     previewMarker = [];
 
-    const newId = locations.length > 0 ? Math.max(...locations.map(l => l.id)) + 1 : 1;
+    const newId = rawLocations.length > 0 ? Math.max(...rawLocations.map(l => l.id)) + 1 : 1;
 
     const markerDiv = document.createElement('div'); markerDiv.className='red-dot-marker';
     const marker = new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([lng,lat]).addTo(map);
@@ -1017,7 +1067,6 @@ document.getElementById('clear-preview-btn').onclick = function() {
 };
 
 document.getElementById('performance-button').addEventListener('click', function() {
-    // ลิงก์ไปยัง URL ที่คุณต้องการ
     window.location.href = 'https://ssi-building.github.io/WasteCheck/WastePerformance.html';
 });
 </script>
