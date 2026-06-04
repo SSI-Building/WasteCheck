@@ -223,31 +223,10 @@ const sheet = document.getElementById('data-table-container');
 const fabBox = document.getElementById('fab-box');
 const dragZone = document.getElementById('drag-zone');
 
-// --- ลอจิกนับวันหยุดถอดแบบจากสูตร Excel หน้าเว็บหลักคอมพิวเตอร์เป๊ะๆ ---
-function countNonWorkingDays(startDate, endDate, holidayList) {
-    let count = 0;
-    let current = new Date(startDate.getTime());
-    current.setDate(current.getDate() + 1); 
-
-    while (current <= endDate) {
-        const isSunday = current.getDay() === 0;
-        
-        const yStr = current.getFullYear();
-        const mStr = String(current.getMonth() + 1).padStart(2, '0');
-        const dStr = String(current.getDate()).padStart(2, '0');
-        const currentStr = `${yStr}-${mStr}-${dStr}`;
-        const isHoliday = holidayList.includes(currentStr);
-
-        if (isSunday || isHoliday) {
-            count++;
-        }
-        current.setDate(current.getDate() + 1);
-    }
-    return count;
-}
-
-// --- ลอจิกการคำนวณสถานะค้างงานรายวันสดบนหน้าเว็บหลัก ---
-function calculateStatusOnClient(locationName, filterDateStr, reports, holidays) {
+// ---------------------------------------------------------
+// 🛠️ ลอจิกการคำนวณสถานะค้างงาน (อัปเดตให้เหมือนเว็บหลักเป๊ะๆ)
+// ---------------------------------------------------------
+function calculateStatusOnClient(locationName, filterDateStr, reports, holidayList) {
     const filterDate = new Date(filterDateStr);
     filterDate.setHours(0, 0, 0, 0); 
     
@@ -268,17 +247,31 @@ function calculateStatusOnClient(locationName, filterDateStr, reports, holidays)
     const maxReportDate = new Date(maxReportTime);
     maxReportDate.setHours(0, 0, 0, 0); 
     
-    const rawDiffDays = Math.floor((filterDate.getTime() - maxReportDate.getTime()) / (1000 * 60 * 60 * 24)); 
+    // 🌟🌟 เปลี่ยนมาใช้การไล่นับทีละวันเหมือนเว็บหลัก 🌟🌟
+    let diffDays = 0;
+    let tempDate = new Date(maxReportDate);
     
-    // หักวันอาทิตย์และวันหยุดนักขัตฤกษ์ที่ไม่มีเก็บขยะออก
-    const nonWorkingDays = countNonWorkingDays(maxReportDate, filterDate, holidays);
-    const diffDays = Math.max(0, rawDiffDays - nonWorkingDays);
-
-    if (dayOfWeek === 1) { 
+    // ไล่เช็คตั้งแต่วันที่เก็บครั้งล่าสุด ไปจนถึง "ก่อน" วันที่ดูข้อมูล
+    while (tempDate < filterDate) {
+        const y = tempDate.getFullYear();
+        const m = String(tempDate.getMonth() + 1).padStart(2, '0');
+        const d = String(tempDate.getDate()).padStart(2, '0');
+        const tempDateString = `${y}-${m}-${d}`; 
+        
+        // เช็คกับ rawHolidays ที่ดึงมาจาก API
+        if (!holidayList.includes(tempDateString)) {
+            diffDays++;
+        }
+        
+        // ขยับไปเช็ควันถัดไป
+        tempDate.setDate(tempDate.getDate() + 1);
+    }
+    
+    if (dayOfWeek === 1) { // วันจันทร์
         if (diffDays <= 1) return "Complete";
         else if (diffDays <= 2) return "Incomplete";
         else return "Critical";
-    } else { 
+    } else { // วันอังคาร - อาทิตย์
         if (diffDays === 0) return "Complete";
         else if (diffDays < 2) return "Incomplete";
         else return "Critical";
@@ -319,12 +312,11 @@ document.getElementById('close-table-btn').onclick = () => {
 function showLoading() { document.getElementById('loading-overlay').style.display='flex'; }
 function hideLoading() { document.getElementById('loading-overlay').style.display='none'; }
 
-// --- โหลดฐานข้อมูลหลักรอบเดียวจาก Google Apps Script พิกัด+ประวัติเก็บขยะ+วันหยุด ---
+// --- โหลดฐานข้อมูลหลักรอบเดียวจาก Google Apps Script ---
 const labelOffsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
 
 async function loadLocations(){
     try {
-        // ยิงไปที่ API เดียวกับหน้าหลักคอมพิวเตอร์เพื่อดึงโครงสร้างมัดรวมมาประมวลผลสด
         const res = await fetch('https://script.google.com/macros/s/AKfycbzXLdcpjac_-ppIGz0BA_Ha_JzOaF2OCLxo55VVExmOmn6MIbLYWI_bH8Ei2QIU83Fc9A/exec');
         const data = await res.json();
         
@@ -341,7 +333,7 @@ async function loadLocations(){
     }
 }
 
-// --- ฟังก์ชันหลักในการแกะข้อมูลและปักหมุดสด เปลี่ยนสีตามวันที่ผู้ใช้กดเลื่อนดูทันที ---
+// --- ฟังก์ชันหลักในการแกะข้อมูลและปักหมุดสด ---
 function processAndRenderData() {
     currentMarkers.forEach(m => m.remove());
     currentMarkers = [];
@@ -359,9 +351,11 @@ function processAndRenderData() {
 
     // เขียนรายการชื่อพื้นที่ส่งเข้าตาราง Bottom Sheet บนมือถือ
     const tableBody = document.querySelector('#data-table tbody');
-    tableBody.innerHTML = finalLocations.map(loc => `<tr><td><b>${loc.id}</b></td><td>${loc.name}</td></tr>`).join('');
+    if (tableBody) {
+        tableBody.innerHTML = finalLocations.map(loc => `<tr><td><b>${loc.id}</b></td><td>${loc.name}</td></tr>`).join('');
+    }
 
-    // วาด Marker และข้อความป้ายกำกับสถานะ (Complete, Incomplete, Critical) สดๆ บนแผนที่
+    // วาด Marker และข้อความป้ายกำกับสถานะ
     finalLocations.forEach(loc => {
         let colorClass = "red-dot-marker"; 
         if (loc.status === "Complete") colorClass = "green-dot-marker";
@@ -386,7 +380,7 @@ function processAndRenderData() {
     });
 }
 
-// --- ปุ่มรีเซ็ตมุมมอง และตั้งวันกลับมาเป็นปัจจุบันของระบบ Flatpickr ---
+// --- ปุ่มรีเซ็ตมุมมอง และตั้งวันกลับมาเป็นปัจจุบัน ---
 document.getElementById('reset-view-btn').onclick = () => {
     showLoading();
     map.easeTo({ 
@@ -396,7 +390,7 @@ document.getElementById('reset-view-btn').onclick = () => {
         duration:800 
     });
     
-    fp.setDate(today); // คืนค่าตัวกล่องปฏิทินสากลกลับเป็นวันนี้
+    fp.setDate(today); 
     
     setTimeout(() => {
         processAndRenderData();
