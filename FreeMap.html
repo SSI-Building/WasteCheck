@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Map-WasteCheck (Clean)</title>
+<link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+    }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<script>
+
+// คงพิกัดและมุมมองเดิมไว้ทั้งหมดตามชุดข้อมูลที่ให้มา
+const targetLngLat = [99.535692, 11.231666];
+const desiredOffsetSouth = 0.0010;
+const desiredOffsetWest  = -0.0010;
+const initialBearing = -45.6;
+const initialZoom = 15.58;
+const initialPitch = 0;
+
+const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+        version: 8,
+        sources: {
+            satellite: {
+                type: 'raster',
+                tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                tileSize: 256
+            }
+        },
+        layers: [{
+            id: 'satellite',
+            type: 'raster',
+            source: 'satellite'
+        }]
+    },
+    center: [targetLngLat[0] - desiredOffsetWest, targetLngLat[1] - desiredOffsetSouth],
+    zoom: initialZoom,
+    bearing: initialBearing,
+    pitch: initialPitch,
+    maxZoom: 17.39
+});
+
+</script>
+</body>
+</html>
