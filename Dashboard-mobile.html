@@ -89,7 +89,7 @@
     #loading-overlay {
         position:fixed; top:0; left:0; width:100%; height:100%;
         background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px);
-        z-index:9999; display:none; flex-direction:column; align-items:center; justify-content:center;
+        z-index:99999;; display:none; flex-direction:column; align-items:center; justify-content:center;
     }
     
     .loader {
@@ -130,6 +130,44 @@
         0%, 100% { opacity: 1; }
         50% { opacity: 0.3; }
     }
+    /* =========================================================
+   PASSWORD OVERLAY (Mobile Optimized)
+   ========================================================= */
+#password-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(236, 240, 241, 0.85); /* พื้นหลังทึบขึ้นนิดหน่อยสำหรับมือถือ */
+    backdrop-filter: blur(8px);
+    display: none; z-index: 90000;
+    align-items: center; justify-content: center;
+    padding: 20px;
+}
+.pwd-card {
+    background: white; padding: 30px 25px;
+    border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    text-align: center; font-family: sans-serif;
+    width: 100%; max-width: 320px; box-sizing: border-box;
+}
+.pwd-card h3 { margin: 0 0 20px 0; color: #2c3e50; font-size: 18px; }
+.pwd-card input {
+    width: 100%; box-sizing: border-box; padding: 14px;
+    margin-bottom: 15px; border: 1.5px solid #dcdde1;
+    border-radius: 10px; 
+    font-size: 16px; /* บังคับ 16px ป้องกัน iOS Auto-zoom */
+    transition: border-color 0.3s;
+    -webkit-appearance: none; /* ล้างสไตล์พื้นฐานของเบราว์เซอร์มือถือ */
+}
+.pwd-card input:focus { outline: none; border-color: #3498db; }
+.pwd-card button {
+    width: 100%; padding: 14px; background-color: #3498db;
+    color: white; border: none; border-radius: 10px;
+    cursor: pointer; font-size: 16px; font-weight: bold;
+    -webkit-tap-highlight-color: transparent; /* เอาแสงกระพริบตอนกดออก */
+}
+.pwd-card button:active { transform: scale(0.97); background-color: #2980b9; }
+#pwd-error {
+    color: #e74c3c; font-size: 14px; margin: 15px 0 0 0;
+    display: none; font-weight: bold;
+}
 </style>
 </head>
 <body>
@@ -173,6 +211,15 @@
 <div id="loading-overlay">
     <div class="loader"></div>
     <div class="loading-text">กำลังอัปเดตข้อมูล...</div>
+</div>
+
+<div id="password-overlay">
+    <div class="pwd-card">
+        <h3><i class="fas fa-lock" style="color: #7f8c8d; margin-right: 8px;"></i>เข้าสู่ระบบ</h3>
+        <input type="password" id="pwd-input" placeholder="กรุณาใส่รหัสผ่าน">
+        <button id="pwd-submit">ยืนยัน</button>
+        <p id="pwd-error">รหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง</p>
+    </div>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
@@ -315,11 +362,34 @@ function hideLoading() { document.getElementById('loading-overlay').style.displa
 // --- โหลดฐานข้อมูลหลักรอบเดียวจาก Google Apps Script ---
 const labelOffsetMap = { top:[0,-10], right:[20,10], bottom:[0,30], left:[-20,10] };
 
-async function loadLocations(){
+// --- โหลดฐานข้อมูลหลักรอบเดียวจาก Google Apps Script ---
+async function loadLocations(passwordToCheck = null) {
     try {
-        const res = await fetch('https://script.google.com/macros/s/AKfycbzXLdcpjac_-ppIGz0BA_Ha_JzOaF2OCLxo55VVExmOmn6MIbLYWI_bH8Ei2QIU83Fc9A/exec');
+        showLoading(); // เปิด Loading ทับหน้าต่าง
+        
+        // 1. ดึงรหัสที่พิมพ์มา หรือ ดึงจาก localStorage ที่จำไว้
+        const pwd = passwordToCheck !== null ? passwordToCheck : (localStorage.getItem('site_pwd') || '');
+
+        // 2. แนบรหัสผ่านไปกับ URL
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbzXLdcpjac_-ppIGz0BA_Ha_JzOaF2OCLxo55VVExmOmn6MIbLYWI_bH8Ei2QIU83Fc9A/exec';
+        const res = await fetch(`${scriptUrl}?pwd=${encodeURIComponent(pwd)}`);
         const data = await res.json();
         
+        // 3. ถ้ารหัสผิด
+        if (data.error === "invalid_password") {
+            hideLoading();
+            document.getElementById('password-overlay').style.display = 'flex';
+            if (passwordToCheck !== null) {
+                document.getElementById('pwd-error').style.display = 'block';
+            }
+            return; // หยุดโหลด
+        }
+
+        // 4. ถ้ารหัสถูกต้อง ซ่อนหน้าต่าง และเซฟรหัสลงเครื่อง
+        document.getElementById('password-overlay').style.display = 'none';
+        localStorage.setItem('site_pwd', pwd);
+
+        // --- โค้ดเก็บข้อมูลเดิม ---
         rawLocations = data.locations || data;
         rawReports = data.reports || [];
         rawHolidays = data.holidays || [];
@@ -329,7 +399,10 @@ async function loadLocations(){
         console.error("Error:", err); 
         alert("เกิดข้อผิดพลาดในการโหลดข้อมูล");
     } finally { 
-        hideLoading(); 
+        // ปิด Loading เฉพาะตอนรหัสผ่านถูกต้องและโหลดเสร็จ
+        if (document.getElementById('password-overlay').style.display === 'none') {
+            hideLoading(); 
+        }
     }
 }
 
@@ -401,6 +474,24 @@ document.getElementById('reset-view-btn').onclick = () => {
 map.on('load', () => { 
     showLoading(); 
     loadLocations(); 
+});
+
+// ---------------- ตรวจสอบปุ่มรหัสผ่าน (Mobile) ----------------
+document.getElementById('pwd-submit').addEventListener('click', function() {
+    const inputPwd = document.getElementById('pwd-input').value;
+    document.getElementById('pwd-error').style.display = 'none'; // ซ่อนแจ้งเตือนตอนกำลังโหลด
+    
+    // ซ่อนคีย์บอร์ดมือถืออัตโนมัติเมื่อกดตกลง
+    document.getElementById('pwd-input').blur(); 
+    
+    loadLocations(inputPwd);
+});
+
+document.getElementById('pwd-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault(); // ป้องกันพฤติกรรมแปลกๆ บนคีย์บอร์ดมือถือ
+        document.getElementById('pwd-submit').click();
+    }
 });
 </script>
 </body>
