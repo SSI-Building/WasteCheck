@@ -201,7 +201,7 @@
     <div id="data-table-wrapper">
         <table id="data-table">
             <thead>
-                <tr><th>ID</th><th>พื้นที่การทำงาน</th></tr>
+                <tr><th>ID</th><th>พื้นที่การทำงาน</th><th>สถานะ</th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -273,56 +273,77 @@ const dragZone = document.getElementById('drag-zone');
 // ---------------------------------------------------------
 // 🛠️ ลอจิกการคำนวณสถานะค้างงาน (อัปเดตให้เหมือนเว็บหลักเป๊ะๆ)
 // ---------------------------------------------------------
-function calculateStatusOnClient(locationName, filterDateStr, reports, holidayList) {
+function calculateStatusOnClient(loc, filterDateStr, reports, holidayList) {
     const filterDate = new Date(filterDateStr);
     filterDate.setHours(0, 0, 0, 0); 
     
     let dayOfWeek = filterDate.getDay();
     if (dayOfWeek === 0) dayOfWeek = 7; 
     
-    const endOfDayLimit = new Date(filterDateStr + "T23:59:59");
+    const startOfDayLimit = new Date(`${filterDateStr}T00:00:00`);
+    const endOfDayLimit = new Date(`${filterDateStr}T23:59:59`);
+    
     const filteredReports = reports.filter(r => 
-        r.locationName === locationName && 
+        r.locationName === loc.name && 
         new Date(r.timestamp) <= endOfDayLimit
     );
     
+    const requiredRounds = loc.rounds || 1; // ดึงรอบที่ตั้งไว้
+    
+    // นับจำนวนรอบเฉพาะในวันนั้น
+    const todayReports = filteredReports.filter(r => {
+        const rDate = new Date(r.timestamp);
+        return rDate >= startOfDayLimit && rDate <= endOfDayLimit;
+    }).length;
+
+    let status = "Critical";
+
     if (filteredReports.length === 0) {
-        return "Critical";
+        return { status: "Critical", todayCount: 0, required: requiredRounds };
     }
     
     const maxReportTime = Math.max(...filteredReports.map(r => new Date(r.timestamp)));
     const maxReportDate = new Date(maxReportTime);
     maxReportDate.setHours(0, 0, 0, 0); 
     
-    // 🌟🌟 เปลี่ยนมาใช้การไล่นับทีละวันเหมือนเว็บหลัก 🌟🌟
     let diffDays = 0;
     let tempDate = new Date(maxReportDate);
     
-    // ไล่เช็คตั้งแต่วันที่เก็บครั้งล่าสุด ไปจนถึง "ก่อน" วันที่ดูข้อมูล
     while (tempDate < filterDate) {
         const y = tempDate.getFullYear();
         const m = String(tempDate.getMonth() + 1).padStart(2, '0');
         const d = String(tempDate.getDate()).padStart(2, '0');
         const tempDateString = `${y}-${m}-${d}`; 
         
-        // เช็คกับ rawHolidays ที่ดึงมาจาก API
         if (!holidayList.includes(tempDateString)) {
             diffDays++;
         }
-        
-        // ขยับไปเช็ควันถัดไป
         tempDate.setDate(tempDate.getDate() + 1);
     }
     
-    if (dayOfWeek === 1) { // วันจันทร์
-        if (diffDays <= 1) return "Complete";
-        else if (diffDays <= 2) return "Incomplete";
-        else return "Critical";
-    } else { // วันอังคาร - อาทิตย์
-        if (diffDays === 0) return "Complete";
-        else if (diffDays < 2) return "Incomplete";
-        else return "Critical";
+    // --- เงื่อนไขสีไฟจราจรตามจำนวนรอบ ---
+    if (todayReports >= requiredRounds) {
+        status = "Complete"; // ครบถ้วน = เขียว
+    } else if (todayReports > 0) {
+        status = "Incomplete"; // มีการเก็บแต่ไม่ครบ = เหลือง
+    } else {
+        // ยังไม่มีการเก็บเลย ให้ใช้กฎวันล่าช้า
+        if (dayOfWeek === 1) { // จันทร์
+            if (diffDays <= 1) status = "Complete";
+            else if (diffDays <= 2) status = "Incomplete";
+            else status = "Critical";
+        } else {
+            if (diffDays === 0) status = "Complete";
+            else if (diffDays < 2) status = "Incomplete";
+            else status = "Critical";
+        }
+        
+        if (requiredRounds > 1 && status === "Complete") {
+            status = "Incomplete"; // ห้ามเขียวถ้ายังเก็บไม่ครบ
+        }
     }
+
+    return { status: status, todayCount: todayReports, required: requiredRounds };
 }
 
 // --- ระบบสไลด์ปรับความสูงหน้าต่าง Bottom Sheet ดึงขยายได้ด้วยนิ้วรูด ---
@@ -411,24 +432,53 @@ function processAndRenderData() {
     currentMarkers.forEach(m => m.remove());
     currentMarkers = [];
 
-    // ดึงค่าวันที่ที่ซ่อนอยู่ในแผง Flatpickr แปลงให้อยู่ในรูปฟอร์แมตมาตรฐาน yyyy-mm-dd ไปเข้าสูตร
+    // ดึงค่าวันที่ที่ซ่อนอยู่ในแผง Flatpickr 
     const selectedDate = flatpickr.formatDate(fp.selectedDates[0], "Y-m-d");
 
     let finalLocations = [];
     if (Array.isArray(rawLocations)) {
         finalLocations = rawLocations.map(loc => {
-            const statusResult = rawReports.length > 0 ? calculateStatusOnClient(loc.name, selectedDate, rawReports, rawHolidays) : (loc.status || "Critical");
-            return { ...loc, status: statusResult };
+            // โยน loc ทั้งก้อนเข้าฟังก์ชันไปคำนวณ
+            if (rawReports.length > 0) {
+                const calc = calculateStatusOnClient(loc, selectedDate, rawReports, rawHolidays);
+                return { ...loc, status: calc.status, todayCount: calc.todayCount, required: calc.required };
+            } else {
+                return { ...loc, status: "Critical", todayCount: 0, required: loc.rounds || 1 };
+            }
         });
     }
 
-    // เขียนรายการชื่อพื้นที่ส่งเข้าตาราง Bottom Sheet บนมือถือ
+    // --- อัปเดตตารางข้อมูล Mobile Bottom Sheet ---
     const tableBody = document.querySelector('#data-table tbody');
+    const statusTextMap = {
+        "Complete": "✅ เรียบร้อย",
+        "Incomplete": "⚠️ ค้าง/ไม่ครบ",
+        "Critical": "❌ ค้าง 2+ วัน"
+    };
+    const statusColorMap = {
+        "Complete": "green",
+        "Incomplete": "#d4ac0d",
+        "Critical": "red"
+    };
+
     if (tableBody) {
-        tableBody.innerHTML = finalLocations.map(loc => `<tr><td><b>${loc.id}</b></td><td>${loc.name}</td></tr>`).join('');
+        tableBody.innerHTML = finalLocations.map(loc => {
+            // จัดการข้อความสถานะในตาราง
+            let statusDisplay = statusTextMap[loc.status] || loc.status;
+            if (loc.required > 1) {
+                statusDisplay += ` <br><span style="font-size:12px; color:#555;">(${loc.todayCount}/${loc.required})</span>`;
+            }
+            let sColor = statusColorMap[loc.status] || "black";
+            
+            return `<tr>
+                        <td><b>${loc.id}</b></td>
+                        <td>${loc.name}</td>
+                        <td style="color:${sColor}; font-weight:bold; line-height: 1.2;">${statusDisplay}</td>
+                    </tr>`;
+        }).join('');
     }
 
-    // วาด Marker และข้อความป้ายกำกับสถานะ
+    // --- วาด Marker และข้อความป้ายกำกับสถานะ ---
     finalLocations.forEach(loc => {
         let colorClass = "red-dot-marker"; 
         if (loc.status === "Complete") colorClass = "green-dot-marker";
@@ -439,9 +489,15 @@ function processAndRenderData() {
         markerDiv.className = colorClass;
         const m1 = new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
 
+        // จัดการข้อความบนป้ายแผนที่ (ซ่อนตัวที่เก็บรอบเดียว และแสดงแค่ X/Y)
+        let labelText = loc.id;
+        if (loc.required > 1) {
+             labelText += ` (${loc.todayCount}/${loc.required})`; 
+        }
+
         const labelDiv = document.createElement('div'); 
         labelDiv.className='custom-text-label'; 
-        labelDiv.innerText = loc.id;
+        labelDiv.innerText = labelText;
         const pos = loc.labelPos?.toLowerCase();
         const offset = labelOffsetMap[pos] || labelOffsetMap.top;
         const m2 = new maplibregl.Marker({element:labelDiv, anchor:'bottom', offset:offset})
