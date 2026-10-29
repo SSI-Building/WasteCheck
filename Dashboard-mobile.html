@@ -168,6 +168,29 @@
     color: #e74c3c; font-size: 14px; margin: 15px 0 0 0;
     display: none; font-weight: bold;
 }
+
+/* =========================================================
+   ANIMATION: คลื่นวงกลมกระจาย (Ripple Effect)
+   ========================================================= */
+.marker-ripple {
+    position: relative;
+    z-index: 9999 !important;
+}
+.marker-ripple::after {
+    content: ""; position: absolute; top: 50%; left: 50%; width: 100%; height: 100%;
+    box-sizing: border-box; border: 2.5px solid #3498db; border-radius: 50%;
+    transform: translate(-50%, -50%) scale(1); animation: ripple-animation 1.2s ease-out infinite; pointer-events: none;
+}
+.marker-ripple::before {
+    content: ""; position: absolute; top: 50%; left: 50%; width: 100%; height: 100%;
+    box-sizing: border-box; border: 2.5px solid #2980b9; border-radius: 50%;
+    transform: translate(-50%, -50%) scale(1); animation: ripple-animation 1.2s ease-out infinite; animation-delay: 0.4s; pointer-events: none;
+}
+@keyframes ripple-animation {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(6); opacity: 0; }
+}
+
 </style>
 </head>
 <body>
@@ -236,6 +259,7 @@ let rawLocations = [];
 let rawReports = [];
 let rawHolidays = [];    // เก็บบันทึกข้อมูลวันหยุดนักขัตฤกษ์เพื่อเอามาหักวันค้างงาน
 let currentMarkers = []; // อาเรย์ล้างหมุดเก่าเวลากดเลื่อนวันดู
+let markerElements = {};
 
 const today = new Date();
 const yyyy = today.getFullYear();
@@ -431,14 +455,14 @@ async function loadLocations(passwordToCheck = null) {
 function processAndRenderData() {
     currentMarkers.forEach(m => m.remove());
     currentMarkers = [];
+    markerElements = {}; // เคลียร์ความจำหมุดรอบเก่า
 
-    // ดึงค่าวันที่ที่ซ่อนอยู่ในแผง Flatpickr 
+    // ดึงค่าวันที่
     const selectedDate = flatpickr.formatDate(fp.selectedDates[0], "Y-m-d");
 
     let finalLocations = [];
     if (Array.isArray(rawLocations)) {
         finalLocations = rawLocations.map(loc => {
-            // โยน loc ทั้งก้อนเข้าฟังก์ชันไปคำนวณ
             if (rawReports.length > 0) {
                 const calc = calculateStatusOnClient(loc, selectedDate, rawReports, rawHolidays);
                 return { ...loc, status: calc.status, todayCount: calc.todayCount, required: calc.required };
@@ -450,32 +474,49 @@ function processAndRenderData() {
 
     // --- อัปเดตตารางข้อมูล Mobile Bottom Sheet ---
     const tableBody = document.querySelector('#data-table tbody');
-    const statusTextMap = {
-        "Complete": "✅ เรียบร้อย",
-        "Incomplete": "⚠️ ค้าง/ไม่ครบ",
-        "Critical": "❌ ค้าง 2+ วัน"
-    };
-    const statusColorMap = {
-        "Complete": "green",
-        "Incomplete": "#d4ac0d",
-        "Critical": "red"
-    };
+    const statusTextMap = { "Complete": "✅ เรียบร้อย", "Incomplete": "⚠️ ค้าง/ไม่ครบ", "Critical": "❌ ค้าง 2+ วัน" };
+    const statusColorMap = { "Complete": "green", "Incomplete": "#d4ac0d", "Critical": "red" };
 
     if (tableBody) {
+        // 👇 สร้างตาราง พร้อมซ่อนค่า ID, Lat, Lng ไว้ใน data-attribute ของแต่ละแถว
         tableBody.innerHTML = finalLocations.map(loc => {
-            // จัดการข้อความสถานะในตาราง
             let statusDisplay = statusTextMap[loc.status] || loc.status;
             if (loc.required > 1) {
                 statusDisplay += ` <br><span style="font-size:12px; color:#555;">(${loc.todayCount}/${loc.required})</span>`;
             }
             let sColor = statusColorMap[loc.status] || "black";
             
-            return `<tr>
+            return `<tr data-id="${loc.id}" data-lat="${loc.lat}" data-lng="${loc.lng}">
                         <td><b>${loc.id}</b></td>
                         <td>${loc.name}</td>
                         <td style="color:${sColor}; font-weight:bold; line-height: 1.2;">${statusDisplay}</td>
                     </tr>`;
         }).join('');
+
+        // 👇 ตรวจจับการแตะนิ้วที่แถวตาราง
+        tableBody.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('click', () => {
+                const id = row.getAttribute('data-id');
+                const lat = parseFloat(row.getAttribute('data-lat'));
+                const lng = parseFloat(row.getAttribute('data-lng'));
+
+                // 1. บินแผนที่ไปหาจุดนั้น
+                map.flyTo({ center: [lng, lat], zoom: 17, speed: 1.2 });
+
+                // 2. หดหน้าต่างตารางลงไปให้เหลือความสูงแค่ 25% (เพื่อให้ผู้ใช้มองเห็นคลื่นน้ำข้างบนชัดๆ)
+                sheet.style.height = '25vh'; 
+
+                // 3. สร้างคลื่นน้ำกระจายรอบๆ หมุด
+                const targetMarker = markerElements[id];
+                if (targetMarker) {
+                    // ล้างคลื่นเก่าออกก่อนเผื่อผู้ใช้จิ้มรัวๆ
+                    document.querySelectorAll('.marker-ripple').forEach(el => el.classList.remove('marker-ripple'));
+                    
+                    targetMarker.classList.add('marker-ripple');
+                    setTimeout(() => targetMarker.classList.remove('marker-ripple'), 2500);
+                }
+            });
+        });
     }
 
     // --- วาด Marker และข้อความป้ายกำกับสถานะ ---
@@ -487,9 +528,12 @@ function processAndRenderData() {
         
         const markerDiv = document.createElement('div'); 
         markerDiv.className = colorClass;
+        
+        // 👇 บันทึก Element ของหมุดผูกไว้กับ ID เพื่อให้เรียกใช้ตอนคลื่นน้ำได้
+        markerElements[loc.id] = markerDiv; 
+
         const m1 = new maplibregl.Marker({element: markerDiv, anchor:'center'}).setLngLat([loc.lng, loc.lat]).addTo(map);
 
-        // จัดการข้อความบนป้ายแผนที่ (ซ่อนตัวที่เก็บรอบเดียว และแสดงแค่ X/Y)
         let labelText = loc.id;
         if (loc.required > 1) {
              labelText += ` (${loc.todayCount}/${loc.required})`; 
