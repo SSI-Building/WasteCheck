@@ -562,6 +562,28 @@ body {
     display: none;
     font-weight: bold;
 }
+/* =========================================================
+   กำหนดความกว้างของคอลัมน์ในตาราง
+   ========================================================= */
+/* คอลัมน์ที่ 1: ID */
+#data-table th:nth-child(1),
+#data-table td:nth-child(1) {
+    width: 10%; 
+    text-align: center;
+}
+
+/* คอลัมน์ที่ 2: พื้นที่ */
+#data-table th:nth-child(2),
+#data-table td:nth-child(2) {
+    width: 55%; 
+}
+
+/* คอลัมน์ที่ 3: สถานะ */
+#data-table th:nth-child(3),
+#data-table td:nth-child(3) {
+    width: 35%; 
+    white-space: nowrap; /* คำสั่งนี้จะบังคับให้ข้อความสถานะเรียงยาวแถวเดียว ไม่โดนปัดตกบรรทัด */
+}
 
 </style>
 </head>
