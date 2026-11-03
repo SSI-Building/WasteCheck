@@ -839,13 +839,44 @@ function calculateStatusOnClient(loc, filterDateStr, reports) {
         tempDate.setDate(tempDate.getDate() + 1);
     }
     
-    // --- เงื่อนไขใหม่รองรับการเก็บหลายรอบ ---
+    // ---------------------------------------------------------
+    // 🔍 1. เช็คสถานะการเก็บของ "วันนี้" ก่อนเป็นอันดับแรก
+    // ---------------------------------------------------------
     if (todayReports >= requiredRounds) {
-        status = "Complete"; // เก็บครบตามรอบที่กำหนด = สีเขียว
+        status = "Complete"; // เก็บครบตามรอบวันนี้ = สีเขียว
     } else if (todayReports > 0) {
-        status = "Incomplete"; // มีการเก็บแต่วันนี้ยังไม่ครบ (เช่น 1/2) = สีเหลือง
+        status = "Incomplete"; // 🌟 ถ้าวันนี้เก็บไปแล้ว 1 รอบ (แต่ยังไม่ครบ) ให้เป็นสีเหลืองทันที! ไม่สนว่าเมื่อวานจะค้าง
     } else {
-        // กรณีไม่มีการเก็บในวันนี้เลย ให้ใช้กฎคำนวณวันล่าช้าเดิม
+        // ---------------------------------------------------------
+        // 🔍 2. ถ้า "วันนี้ยังไม่ได้เก็บเลย (0 รอบ)" ค่อยมาเช็คความล่าช้าและยอดของเมื่อวาน
+        // ---------------------------------------------------------
+        let yesterdayIncomplete = false;
+        if (requiredRounds > 1) {
+            const yesterdayDate = new Date(filterDate);
+            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+            
+            const yY = yesterdayDate.getFullYear();
+            const yM = String(yesterdayDate.getMonth() + 1).padStart(2, '0');
+            const yD = String(yesterdayDate.getDate()).padStart(2, '0');
+            const yesterdayStr = `${yY}-${yM}-${yD}`;
+
+            if (!holidays.includes(yesterdayStr)) {
+                const startY = new Date(`${yesterdayStr}T00:00:00`);
+                const endY = new Date(`${yesterdayStr}T23:59:59`);
+                
+                const yesterdayReportsCount = reports.filter(r => {
+                    const rDate = new Date(r.timestamp);
+                    return r.locationName === loc.name && rDate >= startY && rDate <= endY;
+                }).length;
+
+                // ถ้าเมื่อวานเก็บไม่ครบ (เช่น เก็บแค่ 1 จาก 2 รอบ)
+                if (yesterdayReportsCount > 0 && yesterdayReportsCount < requiredRounds) {
+                    yesterdayIncomplete = true;
+                }
+            }
+        }
+
+        // คำนวณวันตามรอบปกติ
         if (dayOfWeek === 1) { // วันจันทร์
             if (diffDays <= 1) status = "Complete";
             else if (diffDays <= 2) status = "Incomplete";
@@ -858,6 +889,11 @@ function calculateStatusOnClient(loc, filterDateStr, reports) {
         // กฎเหล็ก: ถ้าตั้งไว้ว่าต้องเก็บมากกว่า 1 รอบ และวันนี้ยังเก็บไม่ครบ = ห้ามเขียว
         if (requiredRounds > 1 && status === "Complete") {
             status = "Incomplete";
+        }
+
+        // 🔴 ถ้าวันนี้ยังไม่เก็บเลย แล้วปรากฏว่า "เมื่อวานเก็บไม่ครบ" -> ดีดลงมาเป็นสีแดง (Critical)
+        if (requiredRounds > 1 && yesterdayIncomplete) {
+            status = "Critical";
         }
     }
 
