@@ -294,9 +294,6 @@ const sheet = document.getElementById('data-table-container');
 const fabBox = document.getElementById('fab-box');
 const dragZone = document.getElementById('drag-zone');
 
-// ---------------------------------------------------------
-// 🛠️ ลอจิกการคำนวณสถานะค้างงาน (อัปเดตให้เหมือนเว็บหลักเป๊ะๆ)
-// ---------------------------------------------------------
 function calculateStatusOnClient(loc, filterDateStr, reports, holidayList) {
     const filterDate = new Date(filterDateStr);
     filterDate.setHours(0, 0, 0, 0); 
@@ -345,13 +342,44 @@ function calculateStatusOnClient(loc, filterDateStr, reports, holidayList) {
         tempDate.setDate(tempDate.getDate() + 1);
     }
     
-    // --- เงื่อนไขสีไฟจราจรตามจำนวนรอบ ---
+    // ---------------------------------------------------------
+    // 🔍 1. เช็คสถานะการเก็บของ "วันนี้" ก่อนเป็นอันดับแรก
+    // ---------------------------------------------------------
     if (todayReports >= requiredRounds) {
         status = "Complete"; // ครบถ้วน = เขียว
     } else if (todayReports > 0) {
-        status = "Incomplete"; // มีการเก็บแต่ไม่ครบ = เหลือง
+        status = "Incomplete"; // มีการเก็บแต่วันนี้ยังไม่ครบ = เหลืองทันที! (ไม่ติดล็อกสีแดงเมื่อวาน)
     } else {
-        // ยังไม่มีการเก็บเลย ให้ใช้กฎวันล่าช้า
+        // ---------------------------------------------------------
+        // 🔍 2. ถ้า "วันนี้ยังไม่ได้เก็บเลย (0 รอบ)" ค่อยเช็คยอดเมื่อวานว่าค้างไหม
+        // ---------------------------------------------------------
+        let yesterdayIncomplete = false;
+        if (requiredRounds > 1) {
+            const yesterdayDate = new Date(filterDate);
+            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+            
+            const yY = yesterdayDate.getFullYear();
+            const yM = String(yesterdayDate.getMonth() + 1).padStart(2, '0');
+            const yD = String(yesterdayDate.getDate()).padStart(2, '0');
+            const yesterdayStr = `${yY}-${yM}-${yD}`;
+
+            if (!holidayList.includes(yesterdayStr)) {
+                const startY = new Date(`${yesterdayStr}T00:00:00`);
+                const endY = new Date(`${yesterdayStr}T23:59:59`);
+                
+                const yesterdayReportsCount = reports.filter(r => {
+                    const rDate = new Date(r.timestamp);
+                    return r.locationName === loc.name && rDate >= startY && rDate <= endY;
+                }).length;
+
+                // ถ้าเมื่อวานเก็บไม่ครบตามรอบที่กำหนด (เช่น 1/2)
+                if (yesterdayReportsCount > 0 && yesterdayReportsCount < requiredRounds) {
+                    yesterdayIncomplete = true;
+                }
+            }
+        }
+
+        // เช็ควันล่าช้าตามกฎเดิม
         if (dayOfWeek === 1) { // จันทร์
             if (diffDays <= 1) status = "Complete";
             else if (diffDays <= 2) status = "Incomplete";
@@ -362,14 +390,19 @@ function calculateStatusOnClient(loc, filterDateStr, reports, holidayList) {
             else status = "Critical";
         }
         
+        // กฎเหล็ก: ถ้าตั้งไว้ว่าต้องเก็บมากกว่า 1 รอบ และวันนี้ยังเก็บไม่ครบ = ห้ามเขียว
         if (requiredRounds > 1 && status === "Complete") {
-            status = "Incomplete"; // ห้ามเขียวถ้ายังเก็บไม่ครบ
+            status = "Incomplete";
+        }
+
+        // 🔴 ถ้าวันนี้ยังไม่เก็บเลย แล้วเมื่อวานเก็บไม่ครบ -> ดีดลงมาเป็นสีแดง (Critical)
+        if (requiredRounds > 1 && yesterdayIncomplete) {
+            status = "Critical";
         }
     }
 
     return { status: status, todayCount: todayReports, required: requiredRounds };
 }
-
 // --- ระบบสไลด์ปรับความสูงหน้าต่าง Bottom Sheet ดึงขยายได้ด้วยนิ้วรูด ---
 let isDragging = false;
 const startDragging = () => { isDragging = true; document.body.style.userSelect = 'none'; };
